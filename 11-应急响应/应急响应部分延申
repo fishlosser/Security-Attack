@@ -1,0 +1,130 @@
+各种日志分析方式汇总 - 云+社区 - 腾讯云 (tencent.com)
+--------
+
+Windows
+临时目录排查
+tmp/temp （临时目录）
+
+C:\Users\Administrator\Local Settings\Temp
+temprary Intel files
+C:\Users\MECHEVO\AppData\Local\Temp
+
+浏览器相关文件（控制浏览器下载木马文件）
+
+C:\Users\Administrator\Local Settings\History
+
+控制面板->intelnet 选项 ->临时文件--保存cookie信息
+
+-------------
+
+网络行为排查：
+重要的辅助站点：(用于在线杀毒）
+https://www.virustotal.com/
+
+https://x.threatbook.cn/
+
+https://beian.cndns.com/
+
+google baidu
+
+
+linux应急响应：
+
+cpu飙升、服务器卡顿、异常流量、异常网络连接、服务器无法登录、僵尸网络（服务器被控制）、挖矿、dns服务器报毒
+ifconfig--查看ip
+top -c（动态查看进程）
+lsof -i -PnR 查看网络通信情况
+ps aux | grep [PID] 查看进程信息
+lsof -p [PID] 查看进程打开的文件
+md5sum [文件名] 计算文件的md5值
+
+---------
+
+网络行为分析
+
+netstat -utnpl
+查看带端口情况的
+
+arp -a
+查看arp表
+
+iptables（Linux防火墙）
+iptables -A OUTPUT -d 123.123.123.123 -j DROP
+iptables -I INPUT -p tcp --dport 443 -m string --string "xxx.com" --algo bm -j DROP
+-------------
+启动项排查
+/etc/init.d/
+/etc/xinetd.d
+
+查看rc.local文件
+/etc/rc.d/rc[0-6].d
+/etc/profile.d/
+
+init文件名，系统启动的第一个脚本
+init.d目录名，服务启动脚本
+rcX.d目录名，
+
+-------------
+
+服务排查
+
+服务自启动
+chkconfig --level 2345 httpd on
+
+0 = 关机
+1 = 单用户
+2 = 有网络连接的多用户命令行模式
+3 = 无网络连接的多用户命令行模式
+4 = 不可用
+5 = 带图形界面的多用户模式
+6 = 重新启动
+
+chkconfig --list 查看服务自启动状态
+--del
+
+-----------------
+
+文件检查
+
+rpm -Va 查看所有软件包的变化情况
+
+
+ls -alt
+按时间排序
+
+find / *.py -perm 4777
+ls -al /tmp | grep "Feb 10"
+
+-----------------
+
+帐号检查
+
+w
+查看某一时刻用户行为
+
+cat /etc/passwd
+用户名：密码：用户ID：组ID：用户说明：家（home）目录：登陆之后shell
+cat /etc/shadow
+用户名：加密密码：密码最后一次修改日期：两次密码的修改时间间隔：密码有效期：密码修改到期到的警告天数：密码过期之后的宽限天数：账号失效时间：保留
+
+usermod -L [user]
+userdel [user]
+userdel -r [user]
+
+删除用户之后，/home目录下的用户名文件夹也删了
+
+last 查看成功的登录 /var/log/wtmp
+lastb 登录失败情况/var/log/btmp
+lastlog 查看上一次用户登录情况 /var/log/lastlog
+
+last -x reboot 查看重启记录
+last -x shotdown 查看关机记录
+
+------------------
+
+处置命令：
+chattr +i [目标文件]（锁住文件）
+chmod 000 [目标文件]（封锁权限）
+
+日志配置文件
+/etc/rsyslog.conf
