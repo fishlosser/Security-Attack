@@ -1,0 +1,234 @@
+思路构建一个总纲和对应工具的原理--实例--面试问题
+尝试自己搭建，进行漏洞复现是印象最深刻的方式，也可以有自己的感悟
+sql注入部分：
+
+sql注入分类有哪些：
+boolen:布尔盲注
+union:联合注入
+into_outfile:文件读写
+error：报错注入
+regexp：正则匹配
+time_based:时间盲注
+宽字节注入
+堆叠注入
+二次注入
+头注入
+万能密码
+
+如何预防sql注入：
+1.api（安全的api） API(接口)是什么 - 知乎 (zhihu.com)
+2.特殊字符escape，转译处理
+3.白名单--正则表达式
+4.输入控制--不允许使用sql相关字符
+5.过滤、转换、替换、删除（非法关键字）
+6.PDO ---预编译
+防御sql注入--权限不能给的太高
+
+预编译----PDO防御sql注入原理？
+数据库在操作数据之前，数据已经被分析编译、优化，对应执行的计划会缓存下来，并且允许数据库以参数化的形式进行查询，这样话可以杜绝sql注入
+
+select * from user where id = ？--输入参数直接替换？
+sql注入漏洞的功能？
+脱库、上传shell
+脱库,即获取数据库表中的内容,比如用户的敏感信息
+
+sql注入时不使用and or xor，直接使用order by注入？
+确定是否有注入点，如果有就可以直接上order by
+
+堆叠注入 union联合注入不同点？
+堆叠注入：sql语句执行完后，继续执行下一条
+union联合注入：通过影响原本sql语句，union夹带私货
+
+/demo.jsp?uid=110
+如果知道一个注入点，如何获得shell
+1.通过union into_outfile 写入文件，获取shell权限
+2.通过sqlmap --os-shell
+3.通过数据库得到管理员账号、密码，查看后台是否有上传点，上传一句话木马
+4、日志挂马,文件包含，数据库备份
+
+拿到shell的前提？
+1、绝对路径（通过404报错、phpinfo、报错）
+2、gpc转义字符设置off（不会转义单引号）
+3、对目录具有写权限--图片、脚本、临时等存放目录
+4、secure_file_priv为空，
+
+
+延时注入判断？
+1.if(ascii(substr("haha",1,1)=104,sleep(5),1)
+一个个字符判断
+2.benchmark函数
+benchmark（count,expr)重复count次expr表达式
+结果总是0
+3.笛卡尔积（heavy query）
+实战中基本不用
+4.get_lock
+需要提供长连接--mysql_pconnect长连接？？
+get_lock("xxx",1);结果1
+get_lock("xxx",5);结果0
+5.正则bug
+rpad repeat
+通过加大计算量，造成延时效果
+
+
+sql注入写文件的函数？
+select "xxx" into outfile '路径'
+select "xxx" into dumpfile '路径'
+
+如何修复宽字节注入的解决方法？
+配置文件添加指令set character_set_client=binary   指定客户端的字符集是二进制？？？
+windows  my.ini
+linux     my.cnf
+在配置文件中设置
+mysql_query("set character_set_client-binary")
+
+是否知道sql注入分块传输（较冷门）？
+请求头加上Transfer-Encoding：Chunked？？？
+POST数据规则
+2（接下来数据长度） id 2（数据传输长度） -1（） 0（结束）
+（逃避一些防火墙追踪）
+
+sql注入遇见字符转义：
+宽字节、hex编码绕过
+
+看到后台，使用万能密码的原理？
+like 'or'='or'
+利用逻辑运算与、或以及参数引导闭合，让sql语义发生变化，导致注入问题
+
+如何利用对方防注入系统，拿shell？
+url提交一句话木马，记录到日志文件中（自己去查找日志文件的位置）---日志挂马？？？
+
+XFF注入，属于head注入一种
+x-forwarded-for带入系统的dns进行sql注入，达到欺骗服务器的目的
+
+waf---如何绕过waf
+1、关键字（%过waf   iis）--原理（利用中间件相关漏洞）
+sel%e%ct--解码失败--过掉后使用asp.dll 进行url解码，会过滤掉回车、空格等
+/!select*/ 安全狗、D盾
+2、双写、加上干扰字符/*!slect*/...、多层编码、 base64、hex、url、ascii、unicode
+3、绕过策略？？？
+    伪造搜索引擎
+    ua  改为百度、goole的搜索引擎（不一定会拦截）
+4、通过插入无效插入关键目录
+admin  dede  install.. (绕过360）
+举例
+GET /haha/news.php?id=1 xxx被拦截
+GET /haha/news.php/admin?id=1 xxx（？前被忽略）
+GET /haha/admin/..\news.php?id=1 xxx
+5、使用multipart 让防火墙觉得这是在上传文件
+6、双重参数表达一个意思绕过
+GET /haha/news.php?id=1&id=1 xxx
+
+绕过安全狗等waf以及waf原理?
+（追踪变量--追踪特征码--变量伪装、字符拆开）
+
+Mysql部分：
+
+mysql 版本号区别？
+<5.0   无information_schema 多用户单操作---暴力破表名
+>5.0   有information_schema 多用户多操作
+
+mysql5.7 版本跨越性，有哪些特性？
+特性
+1.随机root密码
+2.有自定义test数据库
+3.默认ssl加密
+4.密码过期策略
+5.用户锁
+6.全面支持json
+7.支持两类生成列（generated column）
+8.引入系统库（sys schema)
+
+mysql渗透思路？
+端口信息搜集、版本信息搜集、数据库管理信息搜集、暴力破解、源代码泄露、文件包泄露漏洞、多种方法获取webshell、mof提权、vbs启动项提权、udf提权
+
+当前ip只开放msql，如何渗透？
+外网;
+弱口令、phpmyadmin、版本0day，nday
+内网：
+尝试拦截账号密码
+
+mysql的udf提权条件？--自己搭个环境做一下
+获得一个数据库账号，拥有insert和delete权限，以root为主
+拥有将udf.dll写入目录的权限
+
+mysql默认哪些库？
+mysql  存储用户信息
+information_schema
+test  自建测试库
+performance_schema 互斥锁信息（5.6之前手动，之后默认开启）
+
+mysql表权限？
+增删改查、文件读写、排序查询索引
+
+如何做mysql安全？
+账户权限安全
+数据网络安全
+密码策略安全
+日志
+数据库所在的主机安全
+部署waf
+安全启动项
+备份策略
+
+发现数据库中数据是明文，该如何防御？
+脱敏处理，隐藏重要信息
+（明文处理方法）
+
+MYSQL有哪些提权方法？
+（1）UDF提权(github补充）走流程
+具体语句如下：create function cmdshell returns string soname 'udf.dll' select cmd
+('net user iss_user 123!@#abcABC /add');select cmdshell('net localgroup administrators iss_user /add');select cmdshell('regedit /s d:web3389.reg');
+drop funtion cmdshell
+select cmdshell('netstat -an');
+
+(2)VBS 启动项提权
+create table a (cmd text);
+insert into a values ("set wshshell=createobject (" " wscript.shell"")");insert into a values ("a=wshshell.run(""cmd.exe /c net localgroup administrators iis_user /add "",0)");
+
+(3)Linux Mysql BackDoor提权
+
+(4)MIX.DLL 提权
+folk到自己的github上
+百度一下，走流程
+
+其他数据库部分（Redis、Oracle、Access、Mssql):
+
+redis数据库有哪些利用方式？
+1、密钥登陆ssh
+2、写shell
+3、未授权访问
+
+redis+windows（系统下的redis）
+telnet连接redis，木马写入启动项，写入mof使用mof提权（网上搜索脚本）？？？
+
+Oracle数据库渗透思路？---一般出现在内网中
+1.数据库端口安全扫描
+2.数据库版本信息
+3.获取数据库sid安全值
+4.数据库提权
+
+Oracle提权方法？---java配合，必问Java，意思到即给分
+1.SET_OUTPUT_TO_JAVA
+利用DBMS_JAVA.SET_OUTPUT_TO_JAVA()函数的特性来提升只拥有CREATESESSION的用户的权限
+
+2.GET_DOMAIN_INDEX_TABLES
+这个利用的是PL/SQL Injection 来提升权限
+
+3.LT.FINDRICSET
+这个方法利用SYS.LT.FINDRICSET这个函数的注入漏洞来实现权限的提升
+
+4.SDO_DROP_USER_BEFORE
+这是一个触发器（trigger)漏洞
+触发器在数据库里以独立的对象存储，它与存储过程和函数不同的是，存储过程与函数需要用户显示调用才执行，而触发器是由一个事件来启动运行
+
+扫描到access数据库  asp文件--乱码，如何进行本地利用？
+迅雷下载文件后，文件后缀名改为.mdb
+
+如何使用sqlmap对sa（super administer）权限的mssql 2008 进行提权
+（1）第一种函数
+select name from sysobjects where xtype=u 通过这个来爆第一个表
+select name from sysobjects where xtype=u and name not in(爆出来的表1，爆出来的表2....）
+一直爆下去，直到找到我们所需要的表位置
+（2）第二种函数
+select table_name from information_schema.tables
+select table_name from information_schema.tables where table_name not in(爆出来表1，爆出来表2....）
