@@ -1,0 +1,148 @@
+应急响应
+
+
+宏观思路
+1. 收集信息：收集客户信息和中毒主机信息，包括样本
+2. 判断类型：判断是否是安全事件，何种安全事件，勒索、挖矿、断网、DoS 等等
+3. 抑制范围：隔离使受害⾯不继续扩⼤
+4. 深入分析：日志分析、进程分析、启动项分析、样本分析方便后期溯源
+5. 清理处置：杀掉进程，删除文件，打补丁，删除异常系统服务，清除后门账号防止事件扩大，处理完毕后恢复生产
+6. 产出报告：整理并输出完整的安全事件报告
+
+安全事件分类
+1. Web入侵:挂马、网页篡改（菠菜，黑帽seo）、Webshell、黑页，暗链
+（
+暗链/黑链 - bhz - 博客园 (cnblogs.com)
+黑帽seo:网页劫持详解 - 知乎 (zhihu.com)）
+2. 系统入侵:系统异常、RDP爆破、SSH爆破、主机漏洞
+3. 病毒木马:远控、后门、勒索软件
+4. 信息泄漏:脱裤、数据库登录（弱口令）
+5. 网络流量:频繁发包、批量请求、DDOS/CC攻击，ARP攻击，DNS/HTTP劫持
+6.路由器/交换机攻击：内网病毒，配置错误，机器本身的漏洞等
+首先是对入侵的安全事件进行分类，确认安全事件属于哪类入侵，然后用相应的方法应急。
+
+安全事件分级
+I 级事件 -- 特别重大突发事件
+1. 网络大面积中断
+2. 主要业务大规模瘫痪
+3. 大规模用户/业务数据泄漏
+II 级事件 -- 重大突发事件
+1. 大规模主机入侵
+2. 大规模业务数据损坏
+3. 小规模数据泄漏
+4. 政治敏感事件:官网挂黑页
+III 级事件 -- 较大突发事件
+1. 部分业务系统遭受入侵
+2. 主要业务遭受DDOS
+IV 级事件 -- 一般突发事件
+1. 部分业务系统宕机
+2. 部分业务系统异常/无法访问
+通过对安全事件的定级，确认属于什么级别的事故，采取相应的应急预案和紧急程度的确认。
+
+安全响应执行流程
+1. 事件发生（运维监控人员、客服审核人员等），发现问题的开始，及时通报
+2. 事件确认:判断事件的严重性，评估出问题的严重等级，是否向上进行汇报等
+3. 事件响应:各部门通力合作，处理安全问题，具体解决阶段
+4. 事件关闭:处理完事件之后，需要关闭事件，并写出安全应急处理分析报告，完成整个应急过程
+
+被入侵的主机排查流程
+1. 定位被入侵的主机并且立即对该主机进行断网隔离
+2. 确定攻击类型
+3. 确定被入侵的时间范围
+4. 定位恶意文件和入侵痕迹
+5. 溯源入侵来源
+6. 清理恶意文件/修复漏洞
+7. 事件复盘
+其实这是web安全工作人员最常见的排查流程，因为例如ddos这类的事件可能托管在运维侧，而安全工程师常常是应急网站被入侵后的安全事件。
+
+被入侵的主机排查方法
+
+1、端口检查,检查建立连接是否有开放异常端口，反弹shell（对可疑ip进行在线威胁判断）
+Linux：
+netstat -anptl（查看开放的端口以及建立的连接）
+
+
+Windows：
+netstat -ano | findstr "ESTABLISHED" #已经成功建立的连接
+查看异常端口--无意义的端口7070、9876、7777、6666等，查看pid并使用tasklist | find "pid"查看当前进程
+配合百度查看是否中木马
+
+2、进程检查，定位一下看看有没有运行恶意进程
+Linux：ps -ef (查看进程信息--另一种显示风格ps -aux）/ ps -ef | grep "pid"（抓取某进程信息）/top(动态进程信息查看）/pstree(以树状图查看进程）
+lsof -p [pid]--列出该进程打开的文件
+lsof -i--列出打开的套接字？？
+lsof -c name --对应名称进程打开的文件
+（通过pid信息，找到对应的文件位置？？？）
+
+Windows：tasklist | more（查看主机进程）/ tasklist | find "pid"（筛查目标进程）/wmic process (查看主机进程，可能更全面）--不知道区别
+工具：PChunter
+（PC Hunter 是一个 Windows 系统信息查看软件，同时也是一个手工杀毒辅助软件。
+下载地址：https://www.anxinsec.com/view/antirootkit/）
+
+3、检查系统日志、中间件版本日志、历史命令等--定位入侵路线,是系统配置出了问题(ssh 弱口令,域管理员hash 泄漏)还是WEB 服务出了问题(传马,WEB 漏洞利用)
+Linux：
+history(历史命令）/history -c  (清空历史命令)/cat  ~/.bash_history (记录命令的隐藏文件)
+ls /var/log(对应一些日志存放目录如secure、lastlog等）/lastlog(命令查看用户登陆日志）/lastb（命令查看用户登陆失败日志）--部分日志是二进制文件，不能使用vi进行编写查看
+（日志的防御处理：1、日志进行备份，设置计划任务、脚本备份 2、更改日志的部分权限，如加入不可删除chattr +a [name] )
+
+linux系统下各种日志文件的介绍，查看，及日志服务配置 - 知乎 (zhihu.com)----特别详细的日志介绍
+Windows:
+win+R-->eventvwr(查看系统日志）/采用LogParser进行日志分析---未经过实战
+（日志分析工具（LogParser）
+日志解析器是微软开发的一个强大的多功能工具，它提供对基于文本的数据（例如日志文件、XML 文件和 CSV 文件）以及 Windows® 操作系统上的关键数据源（例如事件日志、注册表、文件系统和 Active Directory。
+下载地址：https://www.microsoft.com/en-us/download/details.aspx?id=24659  
+下载完毕安装后，将其中的文件 LogParser.exe 复制到 C:\Windows\System32 文件夹中或者添加到系统环境变量中。）
+
+中间件版本日志：---待定
+
+4、查看计划任务、启动项信息、开启的服务
+Linux：
+crontab -l(命令查看计划任务）/at -l（列出计划任务序号at -c 「序号」进一步查看）/cat /etc/cron*(查看计划任务的相关文件）
+systemctl list-unit-files | grep enabled（命令查看启动项）
+开机启动配置文件：
+/etc/rc.local
+/etc/rc.d/init.d
+/etc/rc.d/rc.local
+/etc/rc.d/rc[0~6].d
+Windows：
+schtasks | more（命令查看计划任务）C:\Windows\System32\Tasks（计划任务存储位置）
+win+R-->msconfig(查看启动项）
+win+R-->regedit-->检查注册表启动项位置
+HKEY_CURRENT_USER\software\micorsoft\windows\currentversion\run
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Runonce
+win+R-->services.msc（查看开启的服务信息）
+
+5、检查最近文件更改和使用
+Linux：
+rpm -Va（筛查近期被改动的文件）
+Windows:
+win+R-->%UserProfile%\Recent(查看近期打开的文件）
+6、检查本地用户、host文件、（windows）系统会话、（Linux）ssh公钥、开启的服务、系统补丁信息
+Linux：
+本地用户筛查：
+cat /etc/passwd | grep -E "/bin/bash$" （查看可以登录的帐号）/cat /etc/shadow(排查影子账号）
+awk -F:  '{if($3==0)print $1}'  /etc/passwd (查看UID 为0 的帐号)
+host文件：
+cat /etc/hosts(检查host文件，是否有DNS污染）
+ssh公钥：
+cat ~/.ssh/authorized_keys（筛查公钥文件，是否添加异常公钥）
+服务检查：
+cat /etc/services（查看本地服务，1-1024 系统保留，大多数情况只能由root使用，1024-4999 由客户端程序自由分配，5000-65535 由服务端程序自由分配）
+系统补丁信息：
+uname -a（查看系统版本信息）
+
+Windows：
+本地用户检查：
+net user(查看本地用户，但是看不到隐藏用户）/wmic useraccount(能够显示隐藏用户信息）/wmic useraccount list brief(简化显示）
+net user [name](显示某个账户具体信息）
+win+R-->regedit-->HKEY_LOCAL_MACHINE\SAM\SAM\Domains\Account\Users\Names(通过注册表，筛查全用户）
+host文件：
+C:\Windows\System32\drivers\etc\hosts(对host文件进行审查，是否有dns污染）
+系统会话：（部分windows系统不支持该命令）
+query user（查看当前会话）/logoff [id](查看下线用户）
+系统补丁信息：
+systeminfo（查看系统的相关配置信息）
+
+7、流量分析
+burpsuite、wireshark
