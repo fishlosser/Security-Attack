@@ -1,0 +1,161 @@
+内网信息搜集：
+
+如何在内网抓取密码？
+1、使用攻具procdump+mimikatz
+2、使用sam文件离线读取密码，C:\Windows\System32\config
+(30条消息) 通过SAM文件获取windows7密码_xddtrue的博客-CSDN博客_sam文件怎么查看密码
+windows server 2012+抓不到密码
+1、查找文件，是否有密码记录文件
+2、获取hash
+3、获取浏览器账号密码
+
+如何扫描存活主机，且域内装有防护措施？
+1、尝试使用nmap被动扫描方法
+2、调整扫描工具的扫描频率
+3、调整扫描工具特征
+4、利用ssrf漏洞辅助扫描
+
+如何定位域控？--必问
+1、使用nslookup命令
+set type=all
+ldap.tcp.dc._msdcs.DOMAIN_NAME
+2、使用net命令
+nltest /dclist:domainname
+net time /domain
+
+横向移动方式？
+IPC+计划任务、at设置计划任务、IPC+windows服务、psexec、wmi、hash传递、票据传递
+
+查看域控登录过哪些机器？
+powerview--invoke-userhunter
+empire--user_hunter(模块）
+
+域前置技术？
+cdn
+使用https进行通信时，不同的通信层使用不同的域名，在dns解析时TLS服务器的名称指示（sin）使用合法cdn域名或ip，但是实际访问的时候是host的域名
+原理:host头对于检查器是不可见的，但是对于请求https的前端服务器是可见的
+非法请求藏在合法域名中
+curl http://www.baidu.com -H "Host:www.xx.com" -v
+实际上和www.xx.com通信，以为和百度通信
+
+域渗透思路：
+1、查看域内是否有开启web服务的主机
+2、进行web渗透，获取主机权限
+3、查看内网中是否有数据库---暴力破解与数据库漏洞
+4、内网主机弱口令爆破、搜集信息、获取hash等
+5、定位域控位置并尝试查询域控登录过哪些主机，搜集域控资产信息
+6、在域内尝试横向移动（打小弟，设置后门），以及对被渗透的主机进行提权
+
+使用psexec与wmic区别？
+psexec会记录大量日志，而wmic则不会记录大量日志，更加隐蔽
+
+域内攻击方法？
+ms14-068、roasting离线爆破密码、委派攻击、非约束性委派、基于资源约束的委派、ntlm_relay
+
+如何对桌面管理员会话劫持？
+1、提权到system权限，通过工具劫持到已经登录的用户会话，并且不需要得到该用户的用户凭证
+终端服务（桌面管理）可以是连接状态也可以是未连接状态
+
+简述AD与DC区别？
+AD活动目录，存储用户信息，在域控上
+DC负责电脑用户的验证，门卫
+
+简述ntlm认证？
+域环境：
+客户端--->用户名--->服务端
+服务端----challenge-----客户端
+客户端（challenge+ntlm hash=response）---服务端
+服务端---challenge+response---dc
+域控（用户名hash 使用challenge加密和response对比，如果一致，那么认证成功）
+工作组环境：
+操作系统会将用户输入的密码和sam文件对应的用户hash比较，如果一致，认证成功
+
+简述kerberos认证？
+1、客户端向kdc请求服务端授予的票据
+2、拿着票据向服务端请求服务
+
+简述打点？
+1、优先java反序列化漏洞shiro fastjson weblogic 用友oa
+
+
+如何发现shiro漏洞（漏洞复现）？
+请求包：cookie rememberMe
+返回包：set-cookie deleteMe字段
+
+简述shiro漏洞类型（google）？
+shiro 550
+shiro 721
+
+内网木马：
+
+建议自己写一个木马，并做一个免杀
+上传木马如何进行免杀？
+分为有源码和无源码
+1、有源码可以定位特征码，修改被查杀的源代码
+2、无源码免杀修改pe文件头、修改md5值、修改数字签名
+
+简述使用cs msf免杀？
+1、shellcode_runner
+2、加花加壳
+3、重新编译
+4、换数字签名
+5、对关键部分进行加密解密
+
+简述免杀windows api？
+1、VirtualAlloc 开辟内存空间
+2、from_buffer 把shellcode指向指针
+3、RtlMoveMemory 复制shellcode到申请的空间里
+4、CreateThread 执行创建的进程
+
+
+zerologon漏洞--Google
+cve-2020
+
+应急响应：
+
+使用什么工具查看系统后门？
+pchunter、windows启动项--msconfig、
+
+检测出病毒该如何走流程？
+1、检查用户账户是否改动
+2、分析病毒感染文件
+3、网络行为排查
+4、可疑进程分析
+5、启动项排查
+6、计划任务、注册表排查
+7、日志查看
+
+
+如何发现网站页面弱口令爆破--网站日志发现大量post请求？
+1、ip拉黑
+2、限制请求数量
+通过筛选响应200/403数据包，查看密码是否被泄露
+
+如何区分扫描流量和手动流量？
+1、扫描流量--请求有规律且数据量很大
+2、手动流量--间隔时间比较大
+
+如果web被拿到shell？
+1、排查进站位置，并把shell关闭
+2、有没有及时修复可能---关闭网站
+
+如何分析被代理的数据流？
+内网中转主机布置抓包软件，进行追查
+
+如何对Linux安全加固？
+1、密码安全--设置复杂密码
+2、关闭不必要的端口和服务
+3、文件权限设置
+
+如何检查Linux被提权？
+1、查看账号、进程流量
+2、查看日志
+3、查找木马位置，走流程
+
+selinux--安全子系统--控制程序访问特定文件
+日志查看：/var/log
+相关配置：more /etc/rsyslog.conf
+
+如何把selinux关闭，并打开iptables？???
+1、配置/etc/ssh/ssh_conf文件
+2、systemctl start iptables.service
