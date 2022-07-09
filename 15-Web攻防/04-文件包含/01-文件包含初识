@@ -1,0 +1,116 @@
+文件包含
+把它包含的文件当作php文件执行，和文件上传联动
+include/1.html  
+单独访问php不解析
+php代码可能在源代码里
+
+include=1.html php执行
+
+文件包含漏洞利用条件
+* 程序用 include () 等文件包含函数通过动态变量的范式引入需要包含的文件
+* 用户能够控制该动态变量
+* 要保证 php.ini 中 allow_url_fopen 和 allow_url_include 要为 On
+
+
+文件包含的常用函数：
+PHP 中文件包含函数有以下四种：
+* require () 只要程序一运行就包含文件，找不到被包含的文件时会产生致命 错误，并停止脚本
+* require_once ()  若文件中代码已被包含则不会再次包含
+* include () 执行到 include 时才包含文件，找不到被包含文件时只会产生警告， 脚本将继续执行
+* include_once () 若文件中代码已被包含则不会再次包含
+
+文件包含漏洞的分类
+* 本地包含
+可以包含本地文件，在条件允许时甚至能执行代码 读敏感文件，读 PHP 文件包含日志文件 GetShell 
+包含 data: 或 php://input 等伪协议 若有 phpinfo 则可以包含临时文件 配合上传图片马，然后包含从而 GetShell
+* 远程包含
+包含远程的木马或病毒文件，从而 GetShell
+注意：要实现远程文件包含需要 allow_url_fopen 和 allow_url_include 都开启
+<?php
+   $var = $GET['page'];
+   include($var . ".html");
+在包含变量 $var 时，限制了只允许包含 “.html”  格式的文件，这就阻止了一些非法的包含其他文件的情况。
+
+远程文件包含和本地文件包含的区别
+远程文件包含本质上和 LFI (本地文件包含) 是同一个概 念，只是被包含的 "文件源" 不是从本次磁盘上获得，而 是从外部输入流得到
+注意：如果是包含远程服务器上的 PHP 文件，那么得到的是被远程服务器解析过的 PHP，所以在写一句话木马的 时候就不要做成 .php 的文件 ，一般做成 .txt 的文件，再让它包含过来。
+
+文件包含绕过限制
+绕过后面的 “. Html” 限制有很多方法可以实现
+1. %00 截断
+就是在 url 后面输入 %00
+条件：allow_url_fopen = Off php 版本 < 5.3.4
+2. 长路径截断
+条件：windows OS，点号需要长于 256；linux OS 长于 4096 windows 下目录最大长度为 256 字节，超出的部分会被丢 弃 linux 下目录最大长度为 4096 字节
+3. 点点点点点号绕过
+点号绕过的原理和长路径截断的一样：原理是：windows 下目录最大长度为 256 字节， 超出的部分会被丢弃 linux 下目录最大长度为 4096 字节，  超出的部分会被丢弃 所以用….. 绕过的时候 windows 系统 中，点号需要长于 256 ；linux 系统 中点号要长于 4096
+
+include、include-once、require、require-once这一类的带有“包含”的英文，就可以猜测带有这类漏洞
+使用http://当前ip/index.php检测是否含有文件包含漏洞
+如果你文件上传到了一个其他位置，你就需要在当前目录下模拟进入该位置
+fi_local.php?filename=../../../wiki/haha.html
+
+远程文件包含：
+filename=http://127.0.0.1/haha.html
+可能会过滤http:// 与../ 使用大小写或者重写过waf
+http://127.0.0.1/index.php
+hTTp://127.0.0.1/index.php
+../../index.php
+都不行可能对文件进行检查并进行file://访问
+
+代码：
+<?php 
+$file = $_GET['file'];
+include($file);
+?>
+
+允许远程文件包含
+http://dvwa.com/vulnerabilities/fi/?page=http://www.baidu.com
+
+http://dvwa.com/vulnerabilities/fi/?page=file://c:/a.txt
+
+伪协议：
+file:// 访问本地文件系统（本地文件是它本地，不是我主机上的文件）
+http:// 访问http网址（远程文件包含，上传一句话木马）
+
+php:// 访问输入输出流（本地文件包含访问，取出并进行base64加密）
+data:// 访问本地文件，进行php木马访问
+
+zlib:// 访问压缩流
+ftp:// 访问ftp服务器
+phar:// php归档
+rar:// 访问rar文件
+ogg:// 访问音频
+expect:// 交互式流
+
+第一种：
+防御方法：进行关键字符替换 http:// || ./ ../  (重复解决）
+
+通过为协议，查看本地文件源代码进行代码审计
+php://filter/read=convert.base64-encode/resource=./index.php
+
+第二种：
+强制文件头：file
+page=php://input
+POST
+<?php phpinfo();?>
+
+第三种：
+
+data://text/plain,<?php phpinfo()?>
+data://text/plain, <? php system("ls"); ?>
+data://text/plain;base64,PD9waHAgcGhwaW5mbygpPz4=
+
+
+目录遍历：
+和文件包含很类似
+/dir_list.php?title=../
+/dir_list.php?title=../../
+/dir_list.php?title=../../../
+有可能会出现文件夹的图案，让人可以知道网站的目录结构
+
+任意文件下载：
+
+http://pikachu.com//vul/unsafedownload/execdownload.php?filename=../key.txt
+需要知道绝对路径，小众漏洞，旁站下载需要vip的东西（想法）
+
