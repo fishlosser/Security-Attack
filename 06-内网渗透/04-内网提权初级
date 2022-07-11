@@ -71,7 +71,43 @@ mimikatz "privilege::debug" "sekurlsa::ekeys"
 mimikatz "privilege::debug" "sekurlsa::pth /usr:administrator /domain:test1.com /aes256:xxxxx"
 弹出一个cmd
 
-票据传递
+票据传递- 黄金票据、白银票据 - 1_Ry - 博客园 (cnblogs.com)
+KDC（Key Distribution Center）密钥分发中心。
+在KDC中又分为两个部分：Authentication Service(AS,身份验证服务)和Ticket Granting Service(TGS,票据授权服务)
+AD会维护一个Account Database(账户数据库). 它存储了域中所有用户的密码Hash和白名单。只有账户密码都在白名单中的Client才能申请到TGT。
+Kerberos认证的大概流程
+当 Client 想要访问 Server 上的某个服务时,需要先向 AS 证明自己的身份,验证通过后AS会发放的一个TGT,随后Client再次向TGS证明自己的身份,验证通过后TGS会发放一个ST,最后Client向 Server 发起认证请求,这个过程分为三块：
+Client 与 AS 的交互,
+Client 与 TGS 的交互,
+Client 与 Server 的交互。
+黄金票据是伪造TGT，白银票据则是伪造ST
+这里介绍域内常用的两种攻击方式：黄金票据Golden ticket、白银票据SILVER TICKET
+
+金票Golden ticket
+
+伪造金票的场景和所需条件
+黄金票据的利用常用于权限维持阶段。假设这么一种情况，我们已拿到的域内所有的账户Hash，包括krbtgt账户，由于有些原因导致你对域管权限丢失，但好在你还有一个普通域用户权限，碰巧管理员在域内加固时忘记重置krbtgt密码，基于此条件，我们还能利用该票据重新获得域管理员权限，利用krbtgt的HASH值可以伪造生成任意的TGT(mimikatz)，能够绕过对任意用户的账号策略，让用户成为任意组的成员，可用于Kerberos认证的任何服务。
+所需条件
+1、域名称
+2、域的SID值
+3、域的KRBTGT账号的HASH
+4、伪造任意用户名
+（获取域的SID和KRBTGT账号的NTLM HASH的前提是需要已经拿到了域的权限）
+
+银票SILVER TICKET
+
+白银票据就是伪造的ST。
+在Kerberos认证的第三部，Client带着ST和Authenticator3向Server上的某个服务进行请求，Server接收到Client的请求之后,通过自己的Master Key 解密ST,从而获得 Session Key。通过 Session Key 解密 Authenticator3,进而验证对方的身份,验证成功就让 Client 访问server上的指定服务了。
+所以我们只需要知道Server用户的Hash就可以伪造出一个ST,且不会经过KDC,但是伪造的门票只对部分服务起作用。
+伪造银票所需条件#
+1.域名
+2.域sid
+3.目标服务器名
+4.可利用的服务
+5.服务账号的NTML HASH
+6.需要伪造的用户名
+在域控中使用mimikatz获取相关信息
+
 kirbi（车票、船票）
 1、进入x86文件夹，导出票据
 mimikatz "privilege::debug" "sekurlsa::tickets /export"
