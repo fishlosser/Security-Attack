@@ -42,9 +42,26 @@ csrf漏洞主要用来欺骗用户点击，如果使用token可以防御csrf
 SSRF
 curl系列的函数，让php代码可以去访问其他人，linux中请求访问url（apt功效）
 curl不仅可以访问外地端口，也可以访问本地端口，使用伪协议访问本地文件
-url=file:///c:/a.txt
+url=file://(127.0.0.1)/C:\Users\MECHEVO\1.txt
 url=127.0.0.1:3306、80、22（探测本地开放端口）
 
+ssrf使用的相关协议？
+1、file协议本地文件读取
+2、http协议发送http请求
+3、dict协议发送数据，可被服务端看见发送的数据，但只能发送不能交互，不可换行，不能用来攻击那些需要交互的应用
+4、gopher协议
+gopher协议会吃掉第一个字符，所以要先放一个没有用的字符
+回车是rn，但如果直接对rn进行url编码结果是不对的，因为编码的是 r n四个字符的结果，实际回车只是两个不可见的字符，url编码为%0d%0a3、直接发%可以正常接收，但是发%0d%0a就会出现数据包发不出去的问题，还需要进行一次url编码成%250d%250a才能正常发送出去（直接用curl命令测试没这个问题，应该是web服务器会自动进行一次url解码导致的）
+
+测试POC：
+ssrf.php
+<?php
+$temp=curl_init();
+curl_setopt($temp,CURLOPT_URL, $_GET['url']);
+curl_setopt($temp,CURLOPT_HEADER,0);
+curl_exec($temp);
+curl_close($temp);
+?>
 ------------------
 
 xxe
